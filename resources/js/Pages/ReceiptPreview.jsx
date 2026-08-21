@@ -55,13 +55,43 @@ export default function ReceiptPreview({ order }) {
         const scrollLeft = container.scrollLeft;
         const itemWidth = container.offsetWidth;
         let index = Math.round(scrollLeft / itemWidth);
-        index = Math.max(0, Math.min(index, 2)); // Disesuaikan menjadi maksimal indeks 2 (3 item)
+        index = Math.max(0, Math.min(index, 2));
         setActiveIndex(index);
     };
 
     return (
         <div className="bg-[#f8f9ff] text-[#121c28] min-h-screen flex flex-col font-['Inter',sans-serif]">
-            <header className="bg-white text-[#173124] flex justify-between items-center px-4 md:px-6 w-full h-16 shadow-sm z-10 sticky top-0">
+            {/* CSS khusus print */}
+            <style dangerouslySetInnerHTML={{ __html: `
+                @media print {
+                    body * {
+                        visibility: hidden;
+                    }
+                    .print-container, .print-container * {
+                        visibility: visible;
+                    }
+                    .print-container {
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                        width: 100%;
+                        display: flex !important;
+                        flex-direction: column !important;
+                        gap: 20px !important;
+                        align-items: center !important;
+                    }
+                    .printable-card {
+                        opacity: 1 !important;
+                        transform: none !important;
+                        box-shadow: none !important;
+                        width: 350px !important;
+                        page-break-after: always;
+                    }
+                }
+            ` }} />
+
+            {/* Header web */}
+            <header className="bg-white text-[#173124] flex justify-between items-center px-4 md:px-6 w-full h-16 shadow-sm z-10 sticky top-0 print:hidden">
                 <div className="flex items-center gap-4">
                     <Link href="/dashboard" className="hover:bg-slate-100 p-2 rounded-full text-slate-700">
                         <span className="material-symbols-outlined">arrow_back</span>
@@ -74,7 +104,7 @@ export default function ReceiptPreview({ order }) {
             </header>
 
             <main className="flex-grow flex flex-col overflow-hidden px-4 py-6 md:px-12">
-                <div className="mb-6 flex justify-between items-end">
+                <div className="mb-6 flex justify-between items-end print:hidden">
                     <div>
                         <h2 className="text-2xl font-semibold text-[#121c28]">Preview Struk</h2>
                         <p className="text-base text-slate-600 mt-1">
@@ -100,22 +130,28 @@ export default function ReceiptPreview({ order }) {
                 <div
                     ref={containerRef}
                     onScroll={handleScroll}
-                    className="flex-grow overflow-x-auto overflow-y-hidden snap-x snap-mandatory flex gap-6 pb-8 scrollbar-none"
+                    className="flex-grow overflow-x-auto overflow-y-hidden snap-x snap-mandatory flex gap-6 pb-8 scrollbar-none print-container"
                     style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
                     {/* 1. Customer Copy */}
-                    <ReceiptCard active={activeIndex === 0} onClick={() => scrollToReceipt(0)}>
-                        <div className="text-center mb-4">
-                            <h3 className="font-bold text-lg">Mie Gachor </h3>
-                            <p className="text-xs text-slate-600 mt-1">Jl. Sudirman No. 45, Jakarta</p>
+                    <ReceiptCard 
+                        active={activeIndex === 0} 
+                        onClick={() => scrollToReceipt(0)}
+                    >
+                        <div className="text-center mb-4 flex flex-col items-center">
+                            <h3 className="font-bold text-lg">Mie Gachor</h3>
+                            <p className="text-xs text-slate-600 mt-1">Jl. Vetaran</p>
+                            
+                            {/* Logo sedikit diperbesar menggunakan w-24 h-24 */}
+                            <img 
+                                src="/images/logo.png" 
+                                alt="Logo Mie Gachor" 
+                                className="w-24 h-24 object-contain mt-3 filter grayscale" 
+                            />
                         </div>
                         <ReceiptDivider />
                         <ReceiptRow left={`No: ${currentOrder.id}`} right={currentOrder.date} />
                         <ReceiptRow left={`Pelanggan: ${currentOrder.customerName}`} right={`Meja: ${currentOrder.table}`} />
-
-                        <div className="text-center font-bold text-xs mt-2 border border-slate-300 py-1 px-2 rounded-sm inline-block self-center bg-slate-50">
-                            CUSTOMER COPY
-                        </div>
                         <ReceiptDivider />
                         
                         <div className="flex-grow font-['Courier_New',Courier,monospace]">
@@ -153,7 +189,11 @@ export default function ReceiptPreview({ order }) {
                     </ReceiptCard>
 
                     {/* 2. Kitchen Copy (Dapur) */}
-                    <ReceiptCard active={activeIndex === 1} onClick={() => scrollToReceipt(1)} bg="bg-[#f0f8ff]">
+                    <ReceiptCard 
+                        active={activeIndex === 1} 
+                        onClick={() => scrollToReceipt(1)} 
+                        bg="bg-[#f0f8ff]"
+                    >
                         <div className="text-center mb-4"><h3 className="font-bold text-xl uppercase tracking-widest text-[#2d4739]">DAPUR</h3></div>
                         <div className="border-t border-dashed border-[#2d4739] my-3"></div>
                         <div className="flex flex-col font-bold text-sm mb-2 font-['Courier_New',Courier,monospace]">
@@ -172,7 +212,11 @@ export default function ReceiptPreview({ order }) {
                     </ReceiptCard>
 
                     {/* 3. Bar Copy */}
-                    <ReceiptCard active={activeIndex === 2} onClick={() => scrollToReceipt(2)} bg="bg-[#fff0f5]">
+                    <ReceiptCard 
+                        active={activeIndex === 2} 
+                        onClick={() => scrollToReceipt(2)} 
+                        bg="bg-[#fff0f5]"
+                    >
                         <div className="text-center mb-4"><h3 className="font-bold text-xl uppercase tracking-widest text-[#5a3939]">BAR</h3></div>
                         <div className="border-t border-dashed border-[#5a3939] my-3"></div>
                         <div className="flex flex-col font-bold text-sm mb-2 font-['Courier_New',Courier,monospace]">
@@ -197,7 +241,7 @@ export default function ReceiptPreview({ order }) {
 
 function ReceiptCard({ active, onClick, children, bg = 'bg-white' }) {
     return (
-        <div onClick={onClick} className={`snap-center shrink-0 w-[300px] md:w-[350px] p-6 flex flex-col text-sm text-[#121c28] font-['Courier_New',Courier,monospace] ${bg} transition-all cursor-pointer ${active ? 'opacity-100 scale-100 shadow-xl ring-2 ring-[#496455]' : 'opacity-90 scale-95 shadow-md'}`}>
+        <div onClick={onClick} className={`snap-center shrink-0 w-[300px] md:w-[350px] p-6 flex flex-col text-sm text-[#121c28] font-['Courier_New',Courier,monospace] ${bg} transition-all cursor-pointer printable-card ${active ? 'opacity-100 scale-100 shadow-xl ring-2 ring-[#496455]' : 'opacity-90 scale-95 shadow-md'}`}>
             {children}
         </div>
     );
