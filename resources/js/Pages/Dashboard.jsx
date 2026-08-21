@@ -17,8 +17,11 @@ export default function Dashboard() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('Semua');
 
-  // State untuk Fitur Catatan
+  // State untuk Fitur Catatan & Pelanggan/Meja
   const [orderNote, setOrderNote] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [tableNumber, setTableNumber] = useState('');
+
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [tempNote, setTempNote] = useState('');
 
@@ -101,6 +104,8 @@ export default function Dashboard() {
   const clearCart = () => {
     setCart([]);
     setOrderNote('');
+    setCustomerName('');
+    setTableNumber('');
   };
 
   // Fungsi Modal Catatan
@@ -127,6 +132,8 @@ export default function Dashboard() {
       tax: tax,
       total: total,
       orderNote: orderNote,
+      customerName: customerName,
+      tableNumber: tableNumber,
     });
   };
 
@@ -161,7 +168,7 @@ export default function Dashboard() {
               <button className="text-primary hover:bg-primary-container/10 transition-colors p-sm rounded-full flex items-center justify-center cursor-pointer">
                 <span className="material-symbols-outlined">storefront</span>
               </button>
-              <h1 className="text-headline-md font-bold text-primary">BrewMaster Pro</h1>
+              <h1 className="text-headline-md font-bold text-primary">Mie Gachor </h1>
             </div>
 
             {/* Tombol Akses Tambah Menu & Inventory */}
@@ -292,6 +299,30 @@ export default function Dashboard() {
                   >
                     <span className="material-symbols-outlined">close</span>
                   </button>
+                </div>
+              </div>
+
+              {/* Input Nama Pelanggan & Nomor Meja */}
+              <div className="px-md pt-3 pb-2 bg-surface-container-lowest border-b border-outline-variant/20 grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[11px] font-semibold text-on-surface-variant mb-1">Nama Pelanggan</label>
+                  <input
+                    type="text"
+                    placeholder="cth: Budi"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className="w-full p-2 bg-surface border border-outline-variant rounded-lg text-xs text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-on-surface-variant mb-1">Nomor Meja</label>
+                  <input
+                    type="text"
+                    placeholder="cth: 12"
+                    value={tableNumber}
+                    onChange={(e) => setTableNumber(e.target.value)}
+                    className="w-full p-2 bg-surface border border-outline-variant rounded-lg text-xs text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
                 </div>
               </div>
 
@@ -499,7 +530,7 @@ export default function Dashboard() {
                 <textarea
                   value={tempNote}
                   onChange={(e) => setTempNote(e.target.value)}
-                  placeholder="Contoh: Kurangi gula, tanpa es, atau nomor meja 05..."
+                  placeholder="Contoh: Kurangi gula, tanpa es..."
                   rows={4}
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:bg-white transition-all resize-none"
                   autoFocus

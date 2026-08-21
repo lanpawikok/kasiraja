@@ -39,7 +39,7 @@ export default function Welcome() {
           <div className="inline-flex items-center justify-center w-14 h-14 bg-emerald-100 text-emerald-800 rounded-2xl mb-4 shadow-inner">
             <span className="material-symbols-outlined text-3xl">local_cafe</span>
           </div>
-          <h1 className="text-2xl font-bold text-slate-800">BrewMaster Pro</h1>
+          <h1 className="text-2xl font-bold text-slate-800">Mie Gachor </h1>
           <p className="text-slate-500 text-sm mt-1">Login to access operations.</p>
         </div>
 

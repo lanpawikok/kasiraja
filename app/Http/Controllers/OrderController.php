@@ -10,12 +10,23 @@ class OrderController extends Controller
     // Menerima data dari dashboard dan menyimpannya ke session
     public function processCheckout(Request $request)
     {
+        // Validasi input dari frontend agar aman dan lengkap
+        $request->validate([
+            'cart' => 'required|array',
+            'subtotal' => 'required|numeric',
+            'tax' => 'required|numeric',
+            'total' => 'required|numeric',
+            'customerName' => 'required|string',
+            'tableNumber' => 'required|string',
+        ]);
+
         // Petakan data dari request ke format yang dibaca oleh ReceiptPreview
         $orderData = [
             'id' => 'ORD-' . rand(1000, 9999),
             'date' => now()->format('d M Y, H:i'),
             'cashier' => 'Budi', 
-            'table' => '12',     
+            'customerName' => $request->input('customerName'), // Diambil dinamis dari form POS
+            'table' => $request->input('tableNumber'),       // Diambil dinamis dari form POS
             'items' => collect($request->input('cart'))->map(function ($item) use ($request) {
                 // Tentukan tipe item untuk Dapur atau Bar berdasarkan kategori produk
                 $category = strtolower($item['category'] ?? '');

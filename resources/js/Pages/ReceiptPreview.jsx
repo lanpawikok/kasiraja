@@ -2,11 +2,11 @@ import React, { useState, useRef } from 'react';
 import { Link } from '@inertiajs/react';
 
 export default function ReceiptPreview({ order }) {
-    // Tangkap data order dari backend, jika kosong pakai data dummy sementara
+    // Tangkap data order dari backend, tambahkan customerName
     const currentOrder = {
         id: order?.id || 'ORD-0842',
         date: order?.date || '24 Okt 2023, 14:30',
-        cashier: order?.cashier || 'Budi',
+        customerName: order?.customerName || 'Pelanggan',
         table: order?.table || '12',
         items: order?.items || [],
         paymentMethod: order?.paymentMethod || 'CASH',
@@ -19,23 +19,21 @@ export default function ReceiptPreview({ order }) {
     const [activeIndex, setActiveIndex] = useState(0);
     const containerRef = useRef(null);
 
-    // Gunakan perhitungan dari backend jika tersedia, atau hitung manual dari items
     const subtotal = currentOrder.backendSubtotal !== undefined 
         ? currentOrder.backendSubtotal 
         : currentOrder.items.reduce((acc, item) => acc + (item.price * item.qty), 0);
         
     const tax = currentOrder.backendTax !== undefined 
         ? currentOrder.backendTax 
-        : subtotal * 0.10; // PB1 10%
+        : subtotal * 0.10;
 
-    const service = subtotal * 0.05; // Service 5%
+    const service = subtotal * 0.05;
 
     const total = currentOrder.backendTotal !== undefined 
         ? currentOrder.backendTotal + service 
         : subtotal + tax + service;
 
     const change = currentOrder.cashPaid - total;
-    const totalItemsCount = currentOrder.items.reduce((acc, item) => acc + item.qty, 0);
 
     const kitchenItems = currentOrder.items.filter(item => item.type === 'food');
     const barItems = currentOrder.items.filter(item => item.type === 'bar');
@@ -57,7 +55,7 @@ export default function ReceiptPreview({ order }) {
         const scrollLeft = container.scrollLeft;
         const itemWidth = container.offsetWidth;
         let index = Math.round(scrollLeft / itemWidth);
-        index = Math.max(0, Math.min(index, 3));
+        index = Math.max(0, Math.min(index, 2)); // Disesuaikan menjadi maksimal indeks 2 (3 item)
         setActiveIndex(index);
     };
 
@@ -68,7 +66,7 @@ export default function ReceiptPreview({ order }) {
                     <Link href="/dashboard" className="hover:bg-slate-100 p-2 rounded-full text-slate-700">
                         <span className="material-symbols-outlined">arrow_back</span>
                     </Link>
-                    <h1 className="text-xl font-bold text-[#173124]">BrewMaster Pro</h1>
+                    <h1 className="text-xl font-bold text-[#173124]">Mie Gachor </h1>
                 </div>
                 <button onClick={() => window.print()} className="p-2 rounded-full text-slate-700 hover:bg-slate-100">
                     <span className="material-symbols-outlined">print</span>
@@ -85,7 +83,7 @@ export default function ReceiptPreview({ order }) {
                     </div>
 
                     <div className="hidden md:flex bg-slate-200 rounded-full p-1 gap-1">
-                        {['Customer', 'Kasir', 'Dapur', 'Bar'].map((tab, idx) => (
+                        {['Customer', 'Dapur', 'Bar'].map((tab, idx) => (
                             <button
                                 key={tab}
                                 onClick={() => scrollToReceipt(idx)}
@@ -108,12 +106,13 @@ export default function ReceiptPreview({ order }) {
                     {/* 1. Customer Copy */}
                     <ReceiptCard active={activeIndex === 0} onClick={() => scrollToReceipt(0)}>
                         <div className="text-center mb-4">
-                            <h3 className="font-bold text-lg">BREWMASTER PRO</h3>
+                            <h3 className="font-bold text-lg">Mie Gachor </h3>
                             <p className="text-xs text-slate-600 mt-1">Jl. Sudirman No. 45, Jakarta</p>
                         </div>
                         <ReceiptDivider />
                         <ReceiptRow left={`No: ${currentOrder.id}`} right={currentOrder.date} />
-                        <ReceiptRow left={`Kasir: ${currentOrder.cashier}`} right={`Meja: ${currentOrder.table}`} />
+                        <ReceiptRow left={`Pelanggan: ${currentOrder.customerName}`} right={`Meja: ${currentOrder.table}`} />
+
                         <div className="text-center font-bold text-xs mt-2 border border-slate-300 py-1 px-2 rounded-sm inline-block self-center bg-slate-50">
                             CUSTOMER COPY
                         </div>
@@ -153,31 +152,13 @@ export default function ReceiptPreview({ order }) {
                         <ReceiptRow left="Kembali" right={change.toLocaleString('id-ID')} small />
                     </ReceiptCard>
 
-                    {/* 2. Cashier Copy */}
-                    <ReceiptCard active={activeIndex === 1} onClick={() => scrollToReceipt(1)}>
-                        <div className="text-center mb-4"><h3 className="font-bold text-lg">BREWMASTER PRO</h3></div>
-                        <ReceiptDivider />
-                        <ReceiptRow left={`No: ${currentOrder.id}`} right={currentOrder.date} />
-                        <ReceiptRow left={`Kasir: ${currentOrder.cashier}`} right={`Meja: ${currentOrder.table}`} />
-                        <div className="text-center font-bold text-xs mt-2 border border-slate-300 py-1 px-2 rounded-sm inline-block self-center bg-slate-50">
-                            CASHIER COPY
-                        </div>
-                        <ReceiptDivider />
-                        <div className="flex-grow font-['Courier_New',Courier,monospace]">
-                            <div className="flex justify-between mb-1"><span>Total Items</span><span>{totalItemsCount}</span></div>
-                            <div className="border-t border-dashed border-slate-400 my-2"></div>
-                            <div className="flex justify-between font-bold text-base mb-2"><span>TOTAL TAGIHAN</span><span>{total.toLocaleString('id-ID')}</span></div>
-                            <div className="flex justify-between text-xs mb-1"><span>Pembayaran</span><span>{currentOrder.cashPaid.toLocaleString('id-ID')}</span></div>
-                            <div className="flex justify-between text-xs mb-4"><span>Kembalian</span><span>{change.toLocaleString('id-ID')}</span></div>
-                        </div>
-                    </ReceiptCard>
-
-                    {/* 3. Kitchen Copy */}
-                    <ReceiptCard active={activeIndex === 2} onClick={() => scrollToReceipt(2)} bg="bg-[#f0f8ff]">
+                    {/* 2. Kitchen Copy (Dapur) */}
+                    <ReceiptCard active={activeIndex === 1} onClick={() => scrollToReceipt(1)} bg="bg-[#f0f8ff]">
                         <div className="text-center mb-4"><h3 className="font-bold text-xl uppercase tracking-widest text-[#2d4739]">DAPUR</h3></div>
                         <div className="border-t border-dashed border-[#2d4739] my-3"></div>
-                        <div className="flex justify-between font-bold text-sm mb-2 font-['Courier_New',Courier,monospace]">
+                        <div className="flex flex-col font-bold text-sm mb-2 font-['Courier_New',Courier,monospace]">
                             <span className="text-lg">MEJA: {currentOrder.table}</span>
+                            <span className="text-sm font-normal text-slate-700">Pelanggan: {currentOrder.customerName}</span>
                         </div>
                         <div className="border-t border-dashed border-[#2d4739] my-3"></div>
                         <div className="flex-grow font-['Courier_New',Courier,monospace]">
@@ -190,12 +171,13 @@ export default function ReceiptPreview({ order }) {
                         </div>
                     </ReceiptCard>
 
-                    {/* 4. Bar Copy */}
-                    <ReceiptCard active={activeIndex === 3} onClick={() => scrollToReceipt(3)} bg="bg-[#fff0f5]">
+                    {/* 3. Bar Copy */}
+                    <ReceiptCard active={activeIndex === 2} onClick={() => scrollToReceipt(2)} bg="bg-[#fff0f5]">
                         <div className="text-center mb-4"><h3 className="font-bold text-xl uppercase tracking-widest text-[#5a3939]">BAR</h3></div>
                         <div className="border-t border-dashed border-[#5a3939] my-3"></div>
-                        <div className="flex justify-between font-bold text-sm mb-2 font-['Courier_New',Courier,monospace]">
+                        <div className="flex flex-col font-bold text-sm mb-2 font-['Courier_New',Courier,monospace]">
                             <span className="text-lg">MEJA: {currentOrder.table}</span>
+                            <span className="text-sm font-normal text-slate-700">Pelanggan: {currentOrder.customerName}</span>
                         </div>
                         <div className="border-t border-dashed border-[#5a3939] my-3"></div>
                         <div className="flex-grow font-['Courier_New',Courier,monospace]">
@@ -223,5 +205,5 @@ function ReceiptCard({ active, onClick, children, bg = 'bg-white' }) {
 
 function ReceiptDivider() { return <div className="border-t border-dashed border-slate-500 my-3"></div>; }
 function ReceiptRow({ left, right, small = false }) {
-    return <div className={`flex justify-between mb-1 ${small ? 'text-xs text-slate-600' : ''}`}><span>{left}</span><span>{right}</span></div>;
+    return <div className={`flex justify-between mb-1 ${small ? 'text-xs text-slate-600' : ''}`}><span>{left}</span><span>{right || ''}</span></div>;
 }

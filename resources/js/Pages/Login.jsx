@@ -13,7 +13,7 @@ export default function Login() {
             coffee
           </span>
           <h1 className="font-headline-md text-headline-md text-primary font-bold">
-            BrewMaster Pro
+            Mie Gachor
           </h1>
           <p className="font-body-md text-body-md text-on-surface-variant mt-xs">
             Login to access operations.
