@@ -168,10 +168,10 @@ export default function Dashboard() {
               <button className="text-primary hover:bg-primary-container/10 transition-colors p-sm rounded-full flex items-center justify-center cursor-pointer">
                 <span className="material-symbols-outlined">storefront</span>
               </button>
-              <h1 className="text-headline-md font-bold text-primary">Mie Gachor </h1>
+              <h1 className="text-headline-md font-bold text-primary">Mie Gachor</h1>
             </div>
 
-            {/* Tombol Akses Tambah Menu & Inventory */}
+            {/* Tombol Akses Tambah Menu, Inventory, & Absen */}
             <div className="flex items-center gap-2">
               <button 
                 onClick={() => setIsAddMenuOpen(true)}
@@ -187,6 +187,15 @@ export default function Dashboard() {
               >
                 <span className="material-symbols-outlined text-[18px]">inventory_2</span>
                 <span>Manage Inventory</span>
+              </Link>
+
+              {/* Tombol Absen Baru */}
+              <Link 
+                href="/attendance" 
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-sm font-semibold transition-colors cursor-pointer border border-emerald-200/50"
+              >
+                <span className="material-symbols-outlined text-[18px]">badge</span>
+                <span>Absen</span>
               </Link>
             </div>
           </div>
