@@ -113,29 +113,46 @@ export default function Dashboard() {
     });
   };
 
-  const filteredProducts = selectedCategory === 'Semua' 
-    ? products 
+  const filteredProducts = selectedCategory === 'Semua'
+    ? products
     : products.filter(p => p.category === selectedCategory);
 
   return (
     <div className="bg-background text-on-background font-body-md h-screen overflow-hidden flex flex-col">
       <header className="flex justify-between items-center px-md h-[72px] w-full fixed top-0 z-50 bg-surface shadow-sm">
         <div className="flex items-center gap-md">
+          {/* Tombol Kembali ke Dashboard */}
+
+
           <h1 className="text-headline-md font-bold text-primary">Mie Gachor</h1>
-          <button 
+
+
+          <button
             onClick={() => setIsAddMenuOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-on-primary rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors cursor-pointer"
           >
             <span className="material-symbols-outlined text-[18px]">add_circle</span>
             <span>Tambah Menu</span>
           </button>
-          <Link 
-            href="/manage-inventory" 
+
+          <Link href="/dashboard"             className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-sm font-semibold transition-colors">
+                      POS
+                    </Link>
+
+          <Link
+            href="/manage-inventory"
             className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-sm font-semibold transition-colors"
           >
             <span className="material-symbols-outlined text-[18px]">inventory_2</span>
             <span>Inventory</span>
           </Link>
+          <Link
+                          href="/laporan"
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-sm font-semibold transition-colors cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">assessment</span>
+                          <span>Laporan Audit</span>
+                        </Link>
         </div>
       </header>
 

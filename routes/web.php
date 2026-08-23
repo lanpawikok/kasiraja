@@ -1,8 +1,9 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\OrderController; 
+use App\Http\Controllers\OrderController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\ReportController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -41,6 +42,7 @@ Route::get('/receipt-preview', [OrderController::class, 'previewReceipt'])
     ->middleware(['auth', 'verified'])
     ->name('receipt.preview');
 
+// === FITUR PROFILE ===
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -67,5 +69,23 @@ Route::get('/attendance/scan', [AttendanceController::class, 'showScanForm'])
 
 Route::post('/attendance/scan/store', [AttendanceController::class, 'storeFromScan'])
     ->name('attendance.scan.store');
+
+// === FITUR LAPORAN (REPORTS) ===
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/laporan', [ReportController::class, 'index'])
+        ->name('laporan.index');
+
+    Route::post('/laporan/audit', [ReportController::class, 'storeAudit'])
+        ->name('laporan.audit.store');
+
+    Route::get('/laporan/export/pdf', [ReportController::class, 'exportPdf'])
+        ->name('laporan.export.pdf');
+
+    Route::get('/laporan/export/excel', [ReportController::class, 'exportExcel'])
+        ->name('laporan.export.excel');
+
+    Route::get('/laporan/{id}', [ReportController::class, 'show'])
+        ->name('laporan.show');
+});
 
 require __DIR__.'/auth.php';

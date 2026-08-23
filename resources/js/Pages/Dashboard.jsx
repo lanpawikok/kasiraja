@@ -138,8 +138,8 @@ export default function Dashboard() {
   };
 
   // Filter Produk berdasarkan Kategori
-  const filteredProducts = selectedCategory === 'Semua' 
-    ? products 
+  const filteredProducts = selectedCategory === 'Semua'
+    ? products
     : products.filter(p => p.category === selectedCategory);
 
   return (
@@ -173,7 +173,7 @@ export default function Dashboard() {
 
             {/* Tombol Akses Tambah Menu, Inventory, & Absen */}
             <div className="flex items-center gap-2">
-              <button 
+              <button
                 onClick={() => setIsAddMenuOpen(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-on-primary rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors cursor-pointer shadow-sm"
               >
@@ -181,17 +181,24 @@ export default function Dashboard() {
                 <span>Tambah Menu</span>
               </button>
 
-              <Link 
-                href="/manage-inventory" 
+              <Link
+                href="/manage-inventory"
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-sm font-semibold transition-colors cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[18px]">inventory_2</span>
-                <span>Manage Inventory</span>
+                <span>Inventory</span>
+              </Link>
+              <Link
+                href="/laporan"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-sm font-semibold transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[18px]">assessment</span>
+                <span>Laporan Audit</span>
               </Link>
 
               {/* Tombol Absen Baru */}
-              <Link 
-                href="/attendance" 
+              <Link
+                href="/attendance"
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-sm font-semibold transition-colors cursor-pointer border border-emerald-200/50"
               >
                 <span className="material-symbols-outlined text-[18px]">badge</span>
@@ -207,7 +214,7 @@ export default function Dashboard() {
 
         {/* Main Layout */}
         <main className="flex-1 flex flex-row mt-pos-touch-target overflow-hidden relative">
-          
+
           {/* Left Pane: Product Grid & Filters */}
           <section className="flex-1 flex flex-col bg-surface overflow-hidden relative z-0 pb-pos-touch-target md:pb-0 transition-all">
             {/* Search & Filters */}
@@ -439,8 +446,8 @@ export default function Dashboard() {
                 <form onSubmit={handleAddProductSubmit} className="flex flex-col gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-1">Nama Menu</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       required
                       placeholder="cth: Caramel Macchiato"
                       value={newMenu.name}
@@ -452,8 +459,8 @@ export default function Dashboard() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-1">Harga (Rp)</label>
-                      <input 
-                        type="number" 
+                      <input
+                        type="number"
                         required
                         placeholder="35000"
                         value={newMenu.price}
@@ -463,8 +470,8 @@ export default function Dashboard() {
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-1">Stok Awal</label>
-                      <input 
-                        type="number" 
+                      <input
+                        type="number"
                         required
                         placeholder="20"
                         value={newMenu.stock}
@@ -477,7 +484,7 @@ export default function Dashboard() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-1">Kategori</label>
-                      <select 
+                      <select
                         value={newMenu.category}
                         onChange={(e) => setNewMenu({ ...newMenu, category: e.target.value })}
                         className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
@@ -490,7 +497,7 @@ export default function Dashboard() {
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-1">Ikon Tampilan</label>
-                      <select 
+                      <select
                         value={newMenu.icon}
                         onChange={(e) => setNewMenu({ ...newMenu, icon: e.target.value })}
                         className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
