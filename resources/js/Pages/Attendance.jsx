@@ -5,6 +5,9 @@ import { QRCodeSVG } from 'qrcode.react';
 export default function Attendance({ attendances = [] }) {
   const [currentTime, setCurrentTime] = useState('');
   const [baseUrl, setBaseUrl] = useState('');
+  
+  // State untuk Custom Delete Modal
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null, name: '' });
 
   useEffect(() => {
     setBaseUrl(window.location.origin);
@@ -25,16 +28,21 @@ export default function Attendance({ attendances = [] }) {
     return () => clearInterval(interval);
   }, []);
 
-  // Fungsi untuk menghapus data absensi berdasarkan ID
-  const handleDelete = (id, staffName) => {
-    if (window.confirm(`Yakin ingin menghapus absensi untuk "${staffName}"?`)) {
-      router.delete(`/attendance/${id}`, {
+  // Membuka custom modal konfirmasi hapus
+  const handleDeleteClick = (id, staffName) => {
+    setDeleteModal({ isOpen: true, id, name: staffName });
+  };
+
+  // Eksekusi hapus data setelah konfirmasi di modal
+  const confirmDelete = () => {
+    if (deleteModal.id) {
+      router.delete(`/attendance/${deleteModal.id}`, {
         preserveScroll: true,
+        onSuccess: () => setDeleteModal({ isOpen: false, id: null, name: '' }),
       });
     }
   };
 
-  // QR Code langsung mengarah ke halaman form scan nama di HP
   const qrUrl = baseUrl ? `${baseUrl}/attendance/scan` : `http://localhost:8000/attendance/scan`;
 
   return (
@@ -144,7 +152,7 @@ export default function Attendance({ attendances = [] }) {
                             </td>
                             <td className="py-2 px-3 text-center">
                               <button
-                                onClick={() => handleDelete(item.id, item.staff_id)}
+                                onClick={() => handleDeleteClick(item.id, item.staff_id)}
                                 className="p-1.5 text-red-500 hover:bg-red-50 rounded-full transition-colors"
                                 title="Hapus Absen"
                               >
@@ -169,6 +177,44 @@ export default function Attendance({ attendances = [] }) {
           </div>
         </main>
       </div>
+
+      {/* === CUSTOM MODAL KONFIRMASI HAPUS (KEREN & MODERN) === */}
+      {deleteModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-fadeIn">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-gray-100 transform transition-all scale-100">
+            
+            {/* Icon Peringatan */}
+            <div className="w-14 h-14 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
+              <span className="material-symbols-outlined text-3xl">warning</span>
+            </div>
+
+            {/* Judul & Deskripsi */}
+            <h3 className="text-xl font-bold text-gray-800 mb-2">Hapus Absensi?</h3>
+            <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+              Yakin ingin menghapus data kehadiran untuk <span className="font-bold text-gray-700">"{deleteModal.name}"</span>? Tindakan ini tidak dapat dibatalkan.
+            </p>
+
+            {/* Tombol Aksi */}
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteModal({ isOpen: false, id: null, name: '' })}
+                className="flex-1 py-2.5 px-4 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 shadow-md shadow-red-200 transition-colors"
+              >
+                Ya, Hapus
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </>
   );
 }
