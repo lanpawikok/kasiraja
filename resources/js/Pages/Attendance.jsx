@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { QRCodeSVG } from 'qrcode.react';
 
 export default function Attendance({ attendances = [] }) {
@@ -25,7 +25,16 @@ export default function Attendance({ attendances = [] }) {
     return () => clearInterval(interval);
   }, []);
 
-  // QR Code sekarang langsung mengarah ke halaman form scan nama di HP
+  // Fungsi untuk menghapus data absensi berdasarkan ID
+  const handleDelete = (id, staffName) => {
+    if (window.confirm(`Yakin ingin menghapus absensi untuk "${staffName}"?`)) {
+      router.delete(`/attendance/${id}`, {
+        preserveScroll: true,
+      });
+    }
+  };
+
+  // QR Code langsung mengarah ke halaman form scan nama di HP
   const qrUrl = baseUrl ? `${baseUrl}/attendance/scan` : `http://localhost:8000/attendance/scan`;
 
   return (
@@ -119,6 +128,7 @@ export default function Attendance({ attendances = [] }) {
                         <th className="py-2 px-3">Nama Staf</th>
                         <th className="py-2 px-3">Waktu Absen</th>
                         <th className="py-2 px-3">Status</th>
+                        <th className="py-2 px-3 text-center">Aksi</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -132,11 +142,20 @@ export default function Attendance({ attendances = [] }) {
                                 {item.status}
                               </span>
                             </td>
+                            <td className="py-2 px-3 text-center">
+                              <button
+                                onClick={() => handleDelete(item.id, item.staff_id)}
+                                className="p-1.5 text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                                title="Hapus Absen"
+                              >
+                                <span className="material-symbols-outlined text-sm">delete</span>
+                              </button>
+                            </td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="3" className="text-center py-6 text-outline">
+                          <td colSpan="4" className="text-center py-6 text-outline">
                             Belum ada staf yang absen hari ini.
                           </td>
                         </tr>

@@ -35,6 +35,15 @@ class AttendanceController extends Controller
         return redirect()->back();
     }
 
+    // Menghapus data absensi berdasarkan ID (Fitur Hapus Absen)
+    public function destroy($id)
+    {
+        $attendance = Attendance::findOrFail($id);
+        $attendance->delete();
+
+        return redirect()->back();
+    }
+
     // Menampilkan halaman input nama di HP saat QR code di-scan (Dilengkapi Suara Beep & Getar)
     public function showScanForm()
     {
@@ -71,30 +80,27 @@ class AttendanceController extends Controller
                     // Fungsi untuk membunyikan suara Beep & Getar di HP saat halaman terbuka
                     function playBeepAndVibrate() {
                         try {
-                            // Getar HP (durasi 200ms)
                             if ('vibrate' in navigator) {
                                 navigator.vibrate(200);
                             }
-                            // Suara Beep pakai Web Audio API
                             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                             const oscillator = audioCtx.createOscillator();
                             const gainNode = audioCtx.createGain();
                             
                             oscillator.type = 'sine';
-                            oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); // Frekuensi suara (Hz)
+                            oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
                             gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
                             
                             oscillator.connect(gainNode);
                             gainNode.connect(audioCtx.destination);
                             
                             oscillator.start();
-                            oscillator.stop(audioCtx.currentTime + 0.15); // Durasi bunyi 150ms
+                            oscillator.stop(audioCtx.currentTime + 0.15);
                         } catch (e) {
                             console.log('Audio/Vibration blocked by browser policy');
                         }
                     }
 
-                    // Jalankan saat halaman dimuat
                     window.addEventListener('load', playBeepAndVibrate);
                 </script>
             </body>
@@ -112,7 +118,6 @@ class AttendanceController extends Controller
         $today = now()->toDateString();
         $name = trim($request->name);
 
-        // Cek apakah nama tersebut sudah absen hari ini
         $existing = Attendance::where('staff_id', $name)
             ->where('date', $today)
             ->first();
@@ -139,7 +144,6 @@ class AttendanceController extends Controller
             ";
         }
 
-        // Simpan ke database
         Attendance::create([
             'staff_id' => $name,
             'date' => $today,
@@ -162,13 +166,12 @@ class AttendanceController extends Controller
                     <p style='font-size: 14px; color: #6b7280;'>Kehadiranmu pukul " . now()->format('H:i:s') . " telah tercatat di sistem.</p>
                 </div>
                 <script>
-                    // Suara Sukses & Getar Ganda
                     try {
                         if ('vibrate' in navigator) navigator.vibrate(300);
                         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                         const osc = audioCtx.createOscillator();
                         const gain = audioCtx.createGain();
-                        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // Nada D5
+                        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
                         osc.connect(gain); gain.connect(audioCtx.destination);
                         osc.start(); osc.stop(audioCtx.currentTime + 0.2);
                     } catch(e) {}
