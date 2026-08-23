@@ -11,10 +11,7 @@ export default defineConfig({
         react(),
     ],
     server: {
-        host: '192.168.1.4',
-        cors: true, // <-- Tambahkan ini
-        hmr: {
-            host: '192.168.1.4',
-        },
+        host: '127.0.0.1', // Ubah jadi ini agar sinkron saat buka localhost/127.0.0.1
+        port: 5173,
     },
 });
