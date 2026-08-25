@@ -5,7 +5,7 @@ import { QRCodeSVG } from 'qrcode.react';
 export default function Attendance({ attendances = [] }) {
   const [currentTime, setCurrentTime] = useState('');
   const [baseUrl, setBaseUrl] = useState('');
-  
+
   // State untuk Custom Delete Modal
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null, name: '' });
 
@@ -53,12 +53,12 @@ export default function Attendance({ attendances = [] }) {
       `}</style>
 
       <div className="bg-background text-on-background font-body-md min-h-screen flex flex-col md:flex-row pb-20 md:pb-0">
-        
+
         {/* NavigationDrawer */}
         <nav className="bg-surface-container-low dark:bg-surface-container h-full w-72 rounded-r-xl fixed left-0 top-0 z-40 hidden md:flex flex-col p-md shadow-sm">
           <div className="flex items-center gap-md mb-xl">
-            <img 
-              className="w-12 h-12 rounded-full object-cover" 
+            <img
+              className="w-12 h-12 rounded-full object-cover"
               src="https://lh3.googleusercontent.com/aida-public/AB6AXuBvNWsdJR8uafCo4xe092PyHKrK3rod3rNmjHiBlUk6aq1Njac47A5_pm-95iR0WTUB06fNYxCQkzjcMbxIHKeZ3OkCD6JpMBS70mATKiHWVVz3iQJE5LXp9kAFwvP2ZUbuy_J6xTMYwr0uGmxJEnHxtIXZ6YwGD-_EISwcEM_53jVNmvHPRNrSTwnPLJqkxk4pJ_HSvlNDDtVO1MUkhKEvf09yWtV8JSNSslYmqD3-Br0hlePVQDkH-A"
               alt="Admin Profile"
             />
@@ -91,6 +91,27 @@ export default function Attendance({ attendances = [] }) {
               <span className="material-symbols-outlined text-headline-md font-bold text-primary">coffee</span>
               <h1 className="text-headline-md font-bold text-primary">BrewMaster Pro</h1>
             </div>
+            <div className="hidden md:flex items-center gap-md text-on-surface-variant font-semibold text-sm">
+                      <Link href="/dashboard" className="hover:bg-primary/10 transition-colors duration-200 px-sm py-xs rounded">
+                        POS
+                      </Link>
+                      {/* <Link href="/dashboard" className="hover:bg-primary/10 transition-colors duration-200 px-sm py-xs rounded">
+                        Orders
+                      </Link> */}
+                      <Link href="/manage-inventory" className="hover:bg-primary/10 transition-colors duration-200 px-sm py-xs rounded">
+                        Inventory
+                      </Link>
+                      <Link href="/laporan" className="text-primary hover:bg-primary/10 transition-colors duration-200 px-sm py-xs rounded">
+                        Reports
+                      </Link>
+                      <Link
+                                      href="/attendance"
+                                      className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-sm font-semibold transition-colors cursor-pointer border border-emerald-200/50"
+                                    >
+                                      <span className="material-symbols-outlined text-[18px]">badge</span>
+                                      <span>Absen</span>
+                                    </Link>
+                    </div>
             <div className="flex items-center gap-md">
               <span className="font-label-bold text-label-bold text-on-surface-variant">Kasir</span>
               <img className="w-8 h-8 rounded-full bg-surface-variant" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBfHjY5iwp0cS872iz0x5z3xsUvkZjYxH1lM4GY-vwLBdt_ZeCsPS21fIX1JxH9Z2CFKXiymlDbGxFYSBcFeRSndjmadEWwlxmBkEyh-eDeXflXnqWae-p4Jy1MWoUY87LFPFZ87mbA-k1UEKY_0AKw1n_qeqbxXcifVNwvZWPts8GNGFXNNQxrvjxsUf4Efq09JmaIQ56ddAFhJ6lqfQeVXMXmgMpYT6ZJDC56Rel_PKzeFlDDz2Unxg" alt="Avatar" />
@@ -99,7 +120,7 @@ export default function Attendance({ attendances = [] }) {
 
           <div className="p-lg flex-1 flex flex-col gap-lg max-w-7xl mx-auto w-full">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-lg">
-              
+
               {/* Box QR Code */}
               <div className="bg-surface-container-lowest rounded-xl p-lg shadow-sm border border-surface-variant flex flex-col items-center gap-md text-center">
                 <div className="flex items-center gap-sm mb-xs w-full justify-center">
@@ -182,7 +203,7 @@ export default function Attendance({ attendances = [] }) {
       {deleteModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-fadeIn">
           <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-gray-100 transform transition-all scale-100">
-            
+
             {/* Icon Peringatan */}
             <div className="w-14 h-14 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
               <span className="material-symbols-outlined text-3xl">warning</span>
