@@ -1,8 +1,8 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\OrderController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -14,6 +14,7 @@ use Inertia\Inertia;
 |--------------------------------------------------------------------------
 */
 
+// --- PUBLIC ROUTES ---
 Route::get('/', function () {
     return Inertia::render('Welcome', [
         'canLogin' => Route::has('login'),
@@ -23,69 +24,60 @@ Route::get('/', function () {
     ]);
 });
 
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
-
-// Route untuk Manage Inventory
-Route::get('/manage-inventory', function () {
-    return Inertia::render('ManageInventory');
-})->middleware(['auth', 'verified'])->name('manage-inventory');
-
-// Route POST untuk memproses data keranjang dari tombol bayar di dashboard
-Route::post('/process-checkout', [OrderController::class, 'processCheckout'])
-    ->middleware(['auth', 'verified'])
-    ->name('checkout.process');
-
-// Route GET untuk menampilkan halaman preview struk
-Route::get('/receipt-preview', [OrderController::class, 'previewReceipt'])
-    ->middleware(['auth', 'verified'])
-    ->name('receipt.preview');
-
-// === FITUR PROFILE ===
-Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+// Route Public Scan QR Absensi (Tanpa Auth untuk Akses dari HP Karyawan)
+Route::prefix('attendance')->name('attendance.scan.')->group(function () {
+    Route::get('/scan', [AttendanceController::class, 'showScanForm'])->name('form');
+    Route::post('/scan/store', [AttendanceController::class, 'storeFromScan'])->name('store');
 });
 
-// === FITUR ABSENSI FULL FIX ===
-Route::get('/attendance', [AttendanceController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('attendance.index');
 
-Route::post('/attendance/store', [AttendanceController::class, 'store'])
-    ->middleware(['auth', 'verified'])
-    ->name('attendance.store');
-
-// Route untuk Menghapus Data Absensi
-Route::delete('/attendance/{id}', [AttendanceController::class, 'destroy'])
-    ->middleware(['auth', 'verified'])
-    ->name('attendance.destroy');
-
-// Route Public untuk Scan QR dari HP (Tanpa Auth)
-Route::get('/attendance/scan', [AttendanceController::class, 'showScanForm'])
-    ->name('attendance.scan.form');
-
-Route::post('/attendance/scan/store', [AttendanceController::class, 'storeFromScan'])
-    ->name('attendance.scan.store');
-
-// === FITUR LAPORAN (REPORTS) ===
+// --- AUTHENTICATED & VERIFIED ROUTES ---
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/laporan', [ReportController::class, 'index'])
-        ->name('laporan.index');
 
-    Route::post('/laporan/audit', [ReportController::class, 'storeAudit'])
-        ->name('laporan.audit.store');
+    // === DASHBOARD & INVENTORY ===
+    Route::get('/dashboard', function () {
+        return Inertia::render('Dashboard');
+    })->name('dashboard');
 
-    Route::get('/laporan/export/pdf', [ReportController::class, 'exportPdf'])
-        ->name('laporan.export.pdf');
+    Route::get('/manage-inventory', function () {
+        return Inertia::render('ManageInventory');
+    })->name('manage-inventory');
 
-    Route::get('/laporan/export/excel', [ReportController::class, 'exportExcel'])
-        ->name('laporan.export.excel');
+    // === FITUR TRANSACTION & ORDERS ===
+    Route::prefix('checkout')->name('checkout.')->group(function () {
+        Route::post('/process', [OrderController::class, 'processCheckout'])->name('process');
+    });
 
-    Route::get('/laporan/{id}', [ReportController::class, 'show'])
-        ->name('laporan.show');
+    Route::get('/receipt-preview', [OrderController::class, 'previewReceipt'])->name('receipt.preview');
+
+    // === FITUR ATTENDANCE (ABSENSI - 2 FITUR) ===
+    Route::prefix('attendance')->name('attendance.')->group(function () {
+        // Fitur 1: Kelola / Rekap Data Absensi (misal: Admin / Manager View)
+        Route::get('/', [AttendanceController::class, 'index'])->name('index');
+
+        // Fitur 2 (BARU): Halaman Absen Mandiri / Self Check-in (misal: Karyawan Mandiri / User View)
+        Route::get('/checkin', [AttendanceController::class, 'checkin'])->name('checkin');
+
+        // Action Process
+        Route::post('/', [AttendanceController::class, 'store'])->name('store');
+        Route::delete('/{id}', [AttendanceController::class, 'destroy'])->name('destroy');
+    });
+
+    // === FITUR LAPORAN & AUDIT (REPORTS) ===
+    Route::prefix('laporan')->name('laporan.')->group(function () {
+        Route::get('/', [ReportController::class, 'index'])->name('index');
+        Route::post('/audit', [ReportController::class, 'storeAudit'])->name('audit.store');
+        Route::get('/export/pdf', [ReportController::class, 'exportPdf'])->name('export.pdf');
+        Route::get('/export/excel', [ReportController::class, 'exportExcel'])->name('export.excel');
+        Route::get('/{id}', [ReportController::class, 'show'])->name('laporan.show');
+    });
+
+    // === FITUR USER PROFILE ===
+    Route::prefix('profile')->name('profile.')->group(function () {
+        Route::get('/', [ProfileController::class, 'edit'])->name('edit');
+        Route::patch('/', [ProfileController::class, 'update'])->name('update');
+        Route::delete('/', [ProfileController::class, 'destroy'])->name('destroy');
+    });
 });
 
 require __DIR__.'/auth.php';

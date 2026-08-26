@@ -18,7 +18,7 @@ export default {
                 'on-primary-container': '#052116',
                 'primary-fixed-dim': '#B6CDBE',
                 'on-primary-fixed': '#052116',
-                
+
                 surface: '#F8FAF8',
                 'surface-dim': '#E1E3E0',
                 'surface-container': '#EEF0ED',
@@ -29,10 +29,10 @@ export default {
                 'surface-variant': '#E0E4DF',
                 'on-surface': '#191C1A',
                 'on-surface-variant': '#414944',
-                
+
                 background: '#F8FAF8',
                 'on-background': '#191C1A',
-                
+
                 outline: '#717973',
                 'outline-variant': '#C0C8C3',
                 error: '#BA1A1A',

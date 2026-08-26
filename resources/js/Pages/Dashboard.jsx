@@ -168,7 +168,7 @@ export default function Dashboard() {
               <button className="text-primary hover:bg-primary-container/10 transition-colors p-sm rounded-full flex items-center justify-center cursor-pointer">
                 <span className="material-symbols-outlined">storefront</span>
               </button>
-              <h1 className="text-headline-md font-bold text-primary">Mie Gachor</h1>
+              <h1 className="text-headline-md font-bold text-primary">Mie Ghacor</h1>
             </div>
 
             {/* Tombol Akses Tambah Menu, Inventory, & Absen */}
@@ -182,28 +182,32 @@ export default function Dashboard() {
               </button>
 
               <Link
-                href="/manage-inventory"
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-sm font-semibold transition-colors cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-[18px]">inventory_2</span>
-                <span>Inventory</span>
-              </Link>
-              <Link
-                href="/laporan"
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-sm font-semibold transition-colors cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-[18px]">assessment</span>
-                <span>Laporan Audit</span>
-              </Link>
+                              className="px-md py-sm rounded-full text-on-primary-container text-label-bold font-label-bold"
+                              href={route("manage-inventory")}
+                            >
+                              Inventory
+                            </Link>
+                            <Link
+                              className="px-md py-sm rounded-full text-on-surface-variant hover:bg-primary-container/10 transition-colors duration-200 text-label-bold"
+                              href={route("laporan.index")}
+                            >
+                              Reports
+                            </Link>
+                            <Link
+                                            href="/attendance"
+                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-sm font-semibold transition-colors cursor-pointer border border-emerald-200/50"
+                                          >
+                                            <span className="material-symbols-outlined text-[18px]">badge</span>
+                                            <span>Absen</span>
+                                          </Link>
+                        </div>
+                        <div>
+                          <Link
+                            href={route("profile.edit")}
+                            className="text-on-surface-variant hover:bg-primary-container/10 transition-colors duration-200 active:opacity-80 p-sm rounded-full flex items-center"
+                          >
+                          </Link>
 
-              {/* Tombol Absen Baru */}
-              <Link
-                href="/attendance"
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-sm font-semibold transition-colors cursor-pointer border border-emerald-200/50"
-              >
-                <span className="material-symbols-outlined text-[18px]">badge</span>
-                <span>Absen</span>
-              </Link>
             </div>
           </div>
 

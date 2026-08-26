@@ -82,7 +82,7 @@ export default function ReportsAndAudit() {
                         storefront
                     </span>
                     <span className="text-xl font-bold text-[#173124]">
-                        BrewMaster Pro
+                        Mie Ghacor
                     </span>
                 </div>
 
@@ -98,7 +98,7 @@ export default function ReportsAndAudit() {
                                         ? "flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-sm font-semibold transition-colors cursor-pointer border border-emerald-200/50"
                                         : `px-md py-sm rounded-full text-label-bold font-label-bold transition-colors duration-200 ${
                                               activeTab === link.name
-                                                  ? "bg-primary-container text-on-primary-container font-bold"
+                                                  ? "bg-primary-container text-on-primary-container"
                                                   : "text-on-surface-variant hover:bg-primary-container/10"
                                           }`
                                 }

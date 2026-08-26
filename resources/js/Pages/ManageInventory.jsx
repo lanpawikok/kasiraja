@@ -14,7 +14,7 @@ export default function ManageInventory({ auth }) {
               <span className="material-symbols-outlined">menu</span>
             </button>
             <span className="text-headline-md font-headline-md font-bold text-primary">
-              BrewMaster Pro
+              Mie Ghacor
             </span>
           </div>
           <div className="hidden md:flex gap-md">
