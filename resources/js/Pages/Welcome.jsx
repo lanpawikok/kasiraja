@@ -5,7 +5,6 @@ export default function Welcome() {
   const [formData, setFormData] = useState({
     email: 'admin@gmail.com', // Diubah dari username ke email
     password: 'admin123',
-    role: 'admin',
   });
 
   const [loading, setLoading] = useState(false);
@@ -87,30 +86,9 @@ export default function Welcome() {
             </div>
           </div>
 
-          {/* Select Role */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
-              Role
-            </label>
-            <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                badge
-              </span>
-              <select
-                name="role"
-                value={formData.role}
-                onChange={handleChange}
-                className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white transition-all appearance-none cursor-pointer"
-              >
-                <option value="admin">Admin</option>
-                <option value="kasir">Kasir</option>
-                <option value="manajer">Manajer</option>
-              </select>
-              <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-                expand_more
-              </span>
-            </div>
-          </div>
+          <p className="rounded-xl bg-slate-50 px-4 py-3 text-center text-xs text-slate-500">
+            Hak akses ditentukan oleh akun yang terdaftar.
+          </p>
 
           {/* Submit Button */}
           <button

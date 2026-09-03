@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, router } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 
 // Daftar Produk Awal
 const INITIAL_PRODUCTS = [
@@ -12,6 +12,8 @@ const INITIAL_PRODUCTS = [
 ];
 
 export default function Dashboard() {
+  const { auth } = usePage().props;
+  const isAdmin = auth.user?.role === 'admin';
   const [products, setProducts] = useState(INITIAL_PRODUCTS);
   const [cart, setCart] = useState([]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -124,9 +126,9 @@ export default function Dashboard() {
   const tax = subtotal * 0.1;
   const total = subtotal + tax;
 
-  // Handler untuk Proses Pembayaran (Kirim data ke /process-checkout sesuai route Laravel)
+  // Handler untuk Proses Pembayaran
   const handleCheckout = () => {
-    router.post('/process-checkout', {
+    router.post(route('checkout.process'), {
       cart: cart,
       subtotal: subtotal,
       tax: tax,
@@ -171,43 +173,43 @@ export default function Dashboard() {
               <h1 className="text-headline-md font-bold text-primary">Mie Ghacor</h1>
             </div>
 
-            {/* Tombol Akses Tambah Menu, Inventory, & Absen */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setIsAddMenuOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-on-primary rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors cursor-pointer shadow-sm"
-              >
-                <span className="material-symbols-outlined text-[18px]">add_circle</span>
-                <span>Tambah Menu</span>
-              </button>
-
+            {isAdmin && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsAddMenuOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-on-primary rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors cursor-pointer shadow-sm"
+                >
+                  <span className="material-symbols-outlined text-[18px]">add_circle</span>
+                  <span>Tambah Menu</span>
+                </button>
+                <Link
+                  className="px-md py-sm rounded-full text-on-primary-container text-label-bold font-label-bold"
+                  href={route('manage-inventory')}
+                >
+                  Inventory
+                </Link>
+                <Link
+                  className="px-md py-sm rounded-full text-on-surface-variant hover:bg-primary-container/10 transition-colors duration-200 text-label-bold"
+                  href={route('laporan.index')}
+                >
+                  Reports
+                </Link>
+                <Link
+                  href="/attendance"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-sm font-semibold transition-colors cursor-pointer border border-emerald-200/50"
+                >
+                  <span className="material-symbols-outlined text-[18px]">badge</span>
+                  <span>Absen</span>
+                </Link>
+              </div>
+            )}
+            <div>
               <Link
-                              className="px-md py-sm rounded-full text-on-primary-container text-label-bold font-label-bold"
-                              href={route("manage-inventory")}
-                            >
-                              Inventory
-                            </Link>
-                            <Link
-                              className="px-md py-sm rounded-full text-on-surface-variant hover:bg-primary-container/10 transition-colors duration-200 text-label-bold"
-                              href={route("laporan.index")}
-                            >
-                              Reports
-                            </Link>
-                            <Link
-                                            href="/attendance"
-                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-sm font-semibold transition-colors cursor-pointer border border-emerald-200/50"
-                                          >
-                                            <span className="material-symbols-outlined text-[18px]">badge</span>
-                                            <span>Absen</span>
-                                          </Link>
-                        </div>
-                        <div>
-                          <Link
-                            href={route("profile.edit")}
-                            className="text-on-surface-variant hover:bg-primary-container/10 transition-colors duration-200 active:opacity-80 p-sm rounded-full flex items-center"
-                          >
-                          </Link>
-
+                href={route('profile.edit')}
+                className="text-on-surface-variant hover:bg-primary-container/10 transition-colors duration-200 active:opacity-80 p-sm rounded-full flex items-center"
+              >
+                <span className="text-xs font-semibold uppercase tracking-wide">{auth.user?.role}</span>
+              </Link>
             </div>
           </div>
 
