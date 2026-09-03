@@ -5,37 +5,53 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Attendance;
 use Inertia\Inertia;
+use Carbon\Carbon;
 
 class AttendanceController extends Controller
 {
+    // Halaman Dashboard Absensi di PC Admin
     public function index()
     {
-        $attendances = Attendance::where('date', now()->toDateString())
+        $today = Carbon::now('Asia/Jakarta')->toDateString();
+
+        $attendances = Attendance::where('date', $today)
             ->orderBy('created_at', 'desc')
             ->get();
 
         return Inertia::render('Attendance', [
-            'attendances' => $attendances
+            'attendances' => $attendances,
+            'stats' => [
+                'todayCount' => $attendances->count(),
+                'totalStaff' => 10,
+                'percentage' => round(($attendances->count() / 10) * 100),
+                'lateCount' => $attendances->where('status', 'Telat')->count(),
+                'onTimeCount' => $attendances->where('status', 'Tepat Waktu')->count(),
+            ]
         ]);
     }
 
+    // Input manual dari PC Admin
     public function store(Request $request)
     {
         $request->validate([
             'staff_id' => 'required|string',
         ]);
 
+        $now = Carbon::now('Asia/Jakarta');
+        $currentTime = $now->toTimeString();
+        $status = $currentTime > '10:00:00' ? 'Telat' : 'Tepat Waktu';
+
         Attendance::create([
             'staff_id' => $request->staff_id,
-            'date' => now()->toDateString(),
-            'time' => now()->toTimeString(),
-            'status' => 'Hadir',
+            'date' => $now->toDateString(),
+            'time' => $currentTime,
+            'status' => $status,
         ]);
 
         return redirect()->back();
     }
 
-    // Menghapus data absensi berdasarkan ID (Fitur Hapus Absen)
+    // Hapus data absensi
     public function destroy($id)
     {
         $attendance = Attendance::findOrFail($id);
@@ -44,9 +60,12 @@ class AttendanceController extends Controller
         return redirect()->back();
     }
 
-    // Menampilkan halaman input nama di HP saat QR code di-scan (Dilengkapi Suara Beep & Getar)
-    public function showScanForm()
+    // Tampilan Form Input Nama di HP Karyawan saat Scan QR
+    public function showScanForm(Request $request)
     {
+        $storeUrl = route('attendance.scan.store');
+        $csrfToken = csrf_token();
+
         return "
             <!DOCTYPE html>
             <html lang='id'>
@@ -69,15 +88,14 @@ class AttendanceController extends Controller
                 <div class='card'>
                     <h2>☕ BrewMaster Pro</h2>
                     <p>Silakan masukkan nama kamu untuk absen</p>
-                    <form action='/attendance/scan/store' method='POST'>
-                        <input type='hidden' name='_token' value='" . csrf_token() . "'>
+                    <form action='{$storeUrl}' method='POST'>
+                        <input type='hidden' name='_token' value='{$csrfToken}'>
                         <input type='text' name='name' placeholder='Nama Lengkap...' required autocomplete='off'>
                         <button type='submit'>Kirim Absen Sekarang</button>
                     </form>
                 </div>
 
                 <script>
-                    // Fungsi untuk membunyikan suara Beep & Getar di HP saat halaman terbuka
                     function playBeepAndVibrate() {
                         try {
                             if ('vibrate' in navigator) {
@@ -108,15 +126,20 @@ class AttendanceController extends Controller
         ";
     }
 
-    // Memproses data nama yang dikirim dari HP
+    // Simpan dari Scan HP dengan Logika Waktu WIB & Batas Jam 10:00 WIB
     public function storeFromScan(Request $request)
     {
         $request->validate([
             'name' => 'required|string|max:255',
         ]);
 
-        $today = now()->toDateString();
+        $now = Carbon::now('Asia/Jakarta');
+        $today = $now->toDateString();
+        $currentTime = $now->toTimeString();
         $name = trim($request->name);
+
+        // Penentuan Status: Tepat Waktu atau Telat (Batas 10:00:00)
+        $status = $currentTime > '10:00:00' ? 'Telat' : 'Tepat Waktu';
 
         $existing = Attendance::where('staff_id', $name)
             ->where('date', $today)
@@ -146,10 +169,12 @@ class AttendanceController extends Controller
 
         Attendance::create([
             'staff_id' => $name,
-            'date' => $today,
-            'time' => now()->toTimeString(),
-            'status' => 'Hadir',
+            'date'     => $today,
+            'time'     => $currentTime,
+            'status'   => $status,
         ]);
+
+        $statusColor = $status === 'Tepat Waktu' ? '#059669' : '#dc2626';
 
         return "
             <!DOCTYPE html>
@@ -161,9 +186,9 @@ class AttendanceController extends Controller
             </head>
             <body>
                 <div>
-                    <h1 style='color: #059669; font-size: 26px;'>✅ Absensi Berhasil!</h1>
+                    <h1 style='color: {$statusColor}; font-size: 26px;'>✅ Absensi Berhasil!</h1>
                     <p style='font-size: 16px; color: #374151;'>Terima kasih, <b>{$name}</b>.</p>
-                    <p style='font-size: 14px; color: #6b7280;'>Kehadiranmu pukul " . now()->format('H:i:s') . " telah tercatat di sistem.</p>
+                    <p style='font-size: 14px; color: #6b7280;'>Status: <b style='color: {$statusColor};'>{$status}</b> ({$currentTime} WIB)</p>
                 </div>
                 <script>
                     try {

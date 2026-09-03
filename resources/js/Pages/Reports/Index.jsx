@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { Link } from "@inertiajs/react";
 
-
-export default function ReportsAndAudit() {
+export default function ReportsAndAudit({ summary = { total_expense: 1561000 } }) {
+    const totalExpense = summary.total_expense;
     // State untuk menangani interaktivitas Stock Opname
     const [stockItems, setStockItems] = useState([
         {
@@ -41,6 +41,14 @@ export default function ReportsAndAudit() {
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+    // Fungsi format rupiah dinamis
+    const formatRupiah = (number) => {
+        if (number >= 1000000) {
+            return `Rp ${(number / 1000000).toFixed(1)}M`.replace('.', ',');
+        }
+        return `Rp ${number.toLocaleString('id-ID')}`;
+    };
+
     const handleStockChange = (id, value) => {
         const numValue = value === "" ? "" : parseFloat(value);
         setStockItems((prev) =>
@@ -65,7 +73,6 @@ export default function ReportsAndAudit() {
         );
     };
 
-    // Navigasi diperbarui sesuai dengan potongan kode Anda
     const navLinks = [
         { name: "POS", route: "/dashboard", icon: "point_of_sale" },
         { name: "Inventory", route: "/manage-inventory", icon: "inventory_2" },
@@ -209,9 +216,9 @@ export default function ReportsAndAudit() {
                             calendar_month
                         </span>
                         <select className="bg-transparent border-none text-sm font-semibold text-[#121c28] focus:ring-0 cursor-pointer outline-none">
-                            <option value="2023-10">Oktober 2023</option>
-                            <option value="2023-09">September 2023</option>
-                            <option value="2023-08">Agustus 2023</option>
+                            <option value="2026-09">September 2026 (Aktif)</option>
+                            <option value="2026-08">Agustus 2026</option>
+                            <option value="2026-07">Juli 2026</option>
                         </select>
                     </div>
                 </div>
@@ -332,6 +339,75 @@ export default function ReportsAndAudit() {
                     </div>
                 </div>
 
+                {/* Attendance Chart Section */}
+                <div className="bg-white rounded-xl p-6 shadow-sm border border-[#d9e3f4] mb-6">
+                    <div className="flex justify-between items-center mb-6 border-b border-[#d9e3f4] pb-4">
+                        <div>
+                            <h3 className="text-xl font-semibold text-[#121c28]">
+                                Grafik Kehadiran Karyawan
+                            </h3>
+                            <p className="text-xs text-[#424844] mt-1">
+                                Rekapitulasi Tepat Waktu, Terlambat, dan Absen Bulanan
+                            </p>
+                        </div>
+                        <div className="flex gap-4">
+                            <div className="flex items-center gap-1 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200/50">
+                                <div className="w-3 h-3 rounded-full bg-emerald-600"></div>
+                                <span className="text-xs font-semibold text-emerald-700">
+                                    Tepat Waktu (0)
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-1 bg-amber-50 px-3 py-1 rounded-full border border-amber-200/50">
+                                <div className="w-3 h-3 rounded-full bg-amber-500"></div>
+                                <span className="text-xs font-semibold text-amber-700">
+                                    Terlambat (1)
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-1 bg-rose-50 px-3 py-1 rounded-full border border-rose-200/50">
+                                <div className="w-3 h-3 rounded-full bg-rose-500"></div>
+                                <span className="text-xs font-semibold text-rose-700">
+                                    Alpha / Izin (0)
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="relative h-64 w-full flex items-end gap-4 px-4 pt-4">
+                        <div className="absolute left-0 top-0 bottom-8 w-12 flex flex-col justify-between text-[10px] text-[#424844] text-right pr-2 pb-4">
+                            <span>10</span>
+                            <span>8</span>
+                            <span>6</span>
+                            <span>4</span>
+                            <span>2</span>
+                            <span>0</span>
+                        </div>
+                        <div className="flex-1 h-full flex items-end gap-4 ml-10 border-l border-b border-[#d9e3f4] pb-1">
+                            <div className="flex-1 flex flex-col gap-2 items-center group h-full justify-end relative">
+                                <div className="w-full flex justify-center items-end gap-1.5 h-full">
+                                    <div className="bg-emerald-600 w-1/3 h-[1%] rounded-t opacity-90 group-hover:opacity-100 transition-all duration-200 relative group-hover:-translate-y-1">
+                                        <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-emerald-700 opacity-0 group-hover:opacity-100 transition-opacity bg-white px-1 py-0.5 rounded shadow border border-[#d9e3f4]">
+                                            0
+                                        </span>
+                                    </div>
+                                    <div className="bg-amber-500 w-1/3 h-[15%] rounded-t opacity-90 group-hover:opacity-100 transition-all duration-200 relative group-hover:-translate-y-1">
+                                        <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity bg-white px-1 py-0.5 rounded shadow border border-[#d9e3f4]">
+                                            1
+                                        </span>
+                                    </div>
+                                    <div className="bg-rose-500 w-1/3 h-[1%] rounded-t opacity-90 group-hover:opacity-100 transition-all duration-200 relative group-hover:-translate-y-1">
+                                        <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-rose-600 opacity-0 group-hover:opacity-100 transition-opacity bg-white px-1 py-0.5 rounded shadow border border-[#d9e3f4]">
+                                            0
+                                        </span>
+                                    </div>
+                                </div>
+                                <span className="text-xs font-semibold text-[#2d4739] mt-2 bg-[#2d4739]/10 px-2 py-0.5 rounded-full">
+                                    Sep 2026 (Aktif)
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Metric Cards Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-2">
                     <div className="bg-white rounded-xl shadow-sm border border-[#d9e3f4] flex flex-col justify-between relative overflow-hidden p-4 group">
@@ -366,8 +442,9 @@ export default function ReportsAndAudit() {
                             <span className="text-xs text-[#424844] uppercase tracking-wider font-semibold">
                                 Total Pengeluaran
                             </span>
+                            {/* Nilai sudah dinamis dan otomatis diformat */}
                             <h2 className="text-3xl font-bold text-[#e57373] mt-1">
-                                Rp 18.2M
+                                {formatRupiah(totalExpense)}
                             </h2>
                         </div>
                         <div className="mt-4 flex items-center text-xs font-bold text-[#e57373]">
@@ -457,7 +534,7 @@ export default function ReportsAndAudit() {
                             <tbody className="text-sm divide-y divide-[#d9e3f4]">
                                 <tr className="hover:bg-gray-50 transition-colors">
                                     <td className="p-4 font-medium">
-                                        24 Okt 2023
+                                        03 Sep 2026
                                     </td>
                                     <td className="p-4 text-center">42 menu</td>
                                     <td className="p-4 text-right font-bold text-[#173124]">
@@ -469,58 +546,12 @@ export default function ReportsAndAudit() {
                                                 star
                                             </span>
                                             <span className="text-xs font-semibold">
-                                                Espresso
+                                                Mie Ghacor Original
                                             </span>
                                         </div>
                                     </td>
                                     <td className="p-4 text-xs text-[#424844]">
-                                        15x Espresso, 10x Americano, 17x Latte
-                                    </td>
-                                </tr>
-                                <tr className="hover:bg-gray-50 transition-colors bg-gray-50/50">
-                                    <td className="p-4 font-medium">
-                                        23 Okt 2023
-                                    </td>
-                                    <td className="p-4 text-center">38 menu</td>
-                                    <td className="p-4 text-right font-bold text-[#173124]">
-                                        Rp 1.280.000
-                                    </td>
-                                    <td className="p-4">
-                                        <div className="flex items-center gap-1">
-                                            <span className="material-symbols-outlined text-[#fe932c] text-sm">
-                                                star
-                                            </span>
-                                            <span className="text-xs font-semibold">
-                                                Iced Latte
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td className="p-4 text-xs text-[#424844]">
-                                        12x Iced Latte, 8x Cappuccino, 18x Flat
-                                        White
-                                    </td>
-                                </tr>
-                                <tr className="hover:bg-gray-50 transition-colors">
-                                    <td className="p-4 font-medium">
-                                        22 Okt 2023
-                                    </td>
-                                    <td className="p-4 text-center">55 menu</td>
-                                    <td className="p-4 text-right font-bold text-[#173124]">
-                                        Rp 1.920.000
-                                    </td>
-                                    <td className="p-4">
-                                        <div className="flex items-center gap-1">
-                                            <span className="material-symbols-outlined text-[#fe932c] text-sm">
-                                                star
-                                            </span>
-                                            <span className="text-xs font-semibold">
-                                                Croissant Butter
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td className="p-4 text-xs text-[#424844]">
-                                        20x Croissant, 15x Pain au Chocolat, 20x
-                                        Muffin
+                                        15x Mie Ghacor Lv 1, 10x Mie Ghacor Lv 3, 17x Es Teh Manis
                                     </td>
                                 </tr>
                             </tbody>
@@ -536,8 +567,7 @@ export default function ReportsAndAudit() {
                                 Audit Stok (Stock Opname)
                             </h3>
                             <p className="text-xs text-[#424844]">
-                                Sesuaikan stok fisik dengan sistem dan catat
-                                selisih.
+                                Sesuaikan stok fisik dengan sistem dan catat selisih.
                             </p>
                         </div>
                         <div className="flex items-center gap-2">
@@ -659,12 +689,10 @@ export default function ReportsAndAudit() {
                                                                 Rusak (Broken)
                                                             </option>
                                                             <option value="expired">
-                                                                Kedaluwarsa
-                                                                (Expired)
+                                                                Kedaluwarsa (Expired)
                                                             </option>
                                                             <option value="employee">
-                                                                Jatah Karyawan
-                                                                (Employee Meal)
+                                                                Jatah Karyawan (Employee Meal)
                                                             </option>
                                                             <option value="missing">
                                                                 Hilang (Missing)

@@ -20,7 +20,7 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('admin123'),
                 'role' => 'admin',
                 'email_verified_at' => now(),
-            ],
+            ]
         );
 
         User::updateOrCreate(
@@ -30,7 +30,7 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('kasir123'),
                 'role' => 'kasir',
                 'email_verified_at' => now(),
-            ],
+            ]
         );
     }
 }

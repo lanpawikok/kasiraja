@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
@@ -24,7 +25,7 @@ Route::get('/', function () {
     ]);
 });
 
-// Route Public Scan QR Absensi (Tanpa Auth untuk Akses dari HP Karyawan)
+// Route Public Scan QR Absensi (Akses dari HP Karyawan)
 Route::prefix('attendance')->name('attendance.scan.')->group(function () {
     Route::get('/scan', [AttendanceController::class, 'showScanForm'])->name('form');
     Route::post('/scan/store', [AttendanceController::class, 'storeFromScan'])->name('store');
@@ -34,8 +35,14 @@ Route::prefix('attendance')->name('attendance.scan.')->group(function () {
 // --- AUTHENTICATED & VERIFIED ROUTES ---
 Route::middleware(['auth', 'verified'])->group(function () {
 
+    // === ROUTE ABSENSI (Akses Admin & Kasir) ===
+    Route::prefix('attendance')->name('attendance.')->group(function () {
+        Route::get('/', [AttendanceController::class, 'index'])->name('index');
+        Route::post('/', [AttendanceController::class, 'store'])->name('store');
+        Route::delete('/{id}', [AttendanceController::class, 'destroy'])->name('destroy');
+    });
+
     // === HALAMAN OPERASIONAL KASIR ===
-    // Admin tetap dapat mengakses halaman ini melalui RoleMiddleware.
     Route::middleware('role:kasir')->group(function () {
         Route::get('/dashboard', function () {
             return Inertia::render('Dashboard');
@@ -50,15 +57,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // === HALAMAN MANAJEMEN ADMIN ===
     Route::middleware('role:admin')->group(function () {
-        Route::get('/manage-inventory', function () {
-            return Inertia::render('ManageInventory');
-        })->name('manage-inventory');
-
-        Route::prefix('attendance')->name('attendance.')->group(function () {
-            Route::get('/', [AttendanceController::class, 'index'])->name('index');
-            Route::post('/', [AttendanceController::class, 'store'])->name('store');
-            Route::delete('/{id}', [AttendanceController::class, 'destroy'])->name('destroy');
-        });
+        Route::get('/manage-inventory', [InventoryController::class, 'index'])->name('manage-inventory');
+        Route::post('/manage-inventory', [InventoryController::class, 'store'])->name('inventory.store');
+        Route::put('/manage-inventory/{inventory}', [InventoryController::class, 'update'])->name('inventory.update');
 
         Route::prefix('laporan')->name('laporan.')->group(function () {
             Route::get('/', [ReportController::class, 'index'])->name('index');

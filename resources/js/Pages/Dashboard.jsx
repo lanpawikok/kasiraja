@@ -13,7 +13,16 @@ const INITIAL_PRODUCTS = [
 
 export default function Dashboard() {
   const { auth } = usePage().props;
-  const isAdmin = auth.user?.role === 'admin';
+  
+  // Ambil role user
+  const userRole = auth.user?.role?.toLowerCase() || '';
+  
+  // Cek admin (hanya role khusus manajemen/admin)
+  const isAdmin = ['admin', 'administrator', 'owner', 'superadmin', 'manager'].includes(userRole);
+  
+  console.log('User Role:', userRole);
+  console.log('Is Admin:', isAdmin);
+  
   const [products, setProducts] = useState(INITIAL_PRODUCTS);
   const [cart, setCart] = useState([]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -164,7 +173,7 @@ export default function Dashboard() {
 
       <div className="bg-background text-on-background font-body-md h-screen overflow-hidden flex flex-col">
         {/* TopAppBar */}
-        <header className="flex justify-between items-center px-md h-pos-touch-target w-full fixed top-0 z-50 bg-surface shadow-sm">
+        <header className="flex justify-between items-center px-md h-pos-touch-target w-full fixed top-0 z-50 bg-surface shadow-sm border-b border-outline-variant/20">
           <div className="flex items-center gap-md">
             <div className="flex items-center gap-sm">
               <button className="text-primary hover:bg-primary-container/10 transition-colors p-sm rounded-full flex items-center justify-center cursor-pointer">
@@ -173,8 +182,9 @@ export default function Dashboard() {
               <h1 className="text-headline-md font-bold text-primary">Mie Ghacor</h1>
             </div>
 
+            {/* Admin Menu - hanya muncul jika isAdmin true */}
             {isAdmin && (
-              <div className="flex items-center gap-2">
+              <div className="hidden md:flex items-center gap-2">
                 <button
                   onClick={() => setIsAddMenuOpen(true)}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-on-primary rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors cursor-pointer shadow-sm"
@@ -183,7 +193,7 @@ export default function Dashboard() {
                   <span>Tambah Menu</span>
                 </button>
                 <Link
-                  className="px-md py-sm rounded-full text-on-primary-container text-label-bold font-label-bold"
+                  className="px-md py-sm rounded-full text-on-primary-container text-label-bold font-label-bold hover:bg-primary-container/10 transition-colors"
                   href={route('manage-inventory')}
                 >
                   Inventory
@@ -203,19 +213,30 @@ export default function Dashboard() {
                 </Link>
               </div>
             )}
-            <div>
-              <Link
-                href={route('profile.edit')}
-                className="text-on-surface-variant hover:bg-primary-container/10 transition-colors duration-200 active:opacity-80 p-sm rounded-full flex items-center"
-              >
-                <span className="text-xs font-semibold uppercase tracking-wide">{auth.user?.role}</span>
-              </Link>
-            </div>
           </div>
 
-          <button className="text-primary hover:bg-primary-container/10 transition-colors p-sm rounded-full flex items-center justify-center cursor-pointer">
-            <span className="material-symbols-outlined">account_circle</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Role Badge */}
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full" style={{ 
+              backgroundColor: isAdmin ? '#DCFCE7' : '#F3F4F6',
+              color: isAdmin ? '#166534' : '#6B7280'
+            }}>
+              <span className="material-symbols-outlined text-[16px]">
+                {isAdmin ? 'verified' : 'person'}
+              </span>
+              <span className="text-xs font-semibold uppercase tracking-wide">
+                {isAdmin ? 'Admin' : 'Kasir'}
+              </span>
+            </div>
+
+            {/* Profile Button */}
+            <Link
+              href="/profile"
+              className="text-primary hover:bg-primary-container/10 transition-colors p-sm rounded-full flex items-center justify-center cursor-pointer"
+            >
+              <span className="material-symbols-outlined">account_circle</span>
+            </Link>
+          </div>
         </header>
 
         {/* Main Layout */}
@@ -420,7 +441,7 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Tombol Bayar yang mengirim data ke /process-checkout */}
+                {/* Tombol Bayar */}
                 <button
                   type="button"
                   onClick={handleCheckout}

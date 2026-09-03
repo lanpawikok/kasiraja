@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Inventory;
 use App\Models\StockAudit;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -15,10 +16,12 @@ class ReportController extends Controller
 
         $auditItems = StockAudit::all();
 
-        // Data dummy ringkasan keuangan
+        // Menghitung total pengeluaran secara dinamis dari tabel inventaris
+        $totalExpense = Inventory::sum('total_price');
+
         $summary = [
             'total_income' => 42500000,
-            'total_expense' => 18200000,
+            'total_expense' => $totalExpense,
             'items_sold' => 1245,
         ];
 

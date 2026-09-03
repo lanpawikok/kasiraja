@@ -2,141 +2,101 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
-import { Transition } from '@headlessui/react';
 import { useForm } from '@inertiajs/react';
-import { useRef } from 'react';
+import { useState } from 'react';
 
-export default function UpdatePasswordForm({ className = '' }) {
-    const passwordInput = useRef();
-    const currentPasswordInput = useRef();
+export default function DeleteUserForm({ className = '' }) {
+    const [confirmingUserDeletion, setConfirmingUserDeletion] = useState(false);
 
     const {
         data,
         setData,
-        errors,
-        put,
-        reset,
+        delete: destroy,
         processing,
-        recentlySuccessful,
+        reset,
+        errors,
     } = useForm({
-        current_password: '',
         password: '',
-        password_confirmation: '',
     });
 
-    const updatePassword = (e) => {
+    const confirmUserDeletion = () => {
+        setConfirmingUserDeletion(true);
+    };
+
+    const deleteUser = (e) => {
         e.preventDefault();
-
-        put(route('password.update'), {
-            preserveScroll: true,
-            onSuccess: () => reset(),
-            onError: (errors) => {
-                if (errors.password) {
-                    reset('password', 'password_confirmation');
-                    passwordInput.current.focus();
-                }
-
-                if (errors.current_password) {
-                    reset('current_password');
-                    currentPasswordInput.current.focus();
-                }
-            },
+        destroy(route('profile.destroy'), {
+            onFinish: () => reset(),
         });
     };
 
     return (
         <section className={className}>
-            <header>
-                <h2 className="text-lg font-medium text-gray-900">
-                    Update Password
-                </h2>
+            <div className="flex items-center gap-4">
+                <button
+                    onClick={confirmUserDeletion}
+                    className="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-xl font-medium shadow-sm shadow-red-200 transition-all"
+                >
+                    Hapus Akun Saya
+                </button>
+                <p className="text-sm text-gray-500">Akun akan dihapus permanen</p>
+            </div>
 
-                <p className="mt-1 text-sm text-gray-600">
-                    Ensure your account is using a long, random password to stay
-                    secure.
-                </p>
-            </header>
+            {confirmingUserDeletion && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+                        <div className="flex items-start gap-4 mb-6">
+                            <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
+                                <span className="text-2xl">⚠️</span>
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-900">
+                                    Hapus Akun Permanen?
+                                </h3>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    Tindakan ini tidak dapat dibatalkan. Semua data Anda akan hilang selamanya.
+                                </p>
+                            </div>
+                        </div>
 
-            <form onSubmit={updatePassword} className="mt-6 space-y-6">
-                <div>
-                    <InputLabel
-                        htmlFor="current_password"
-                        value="Current Password"
-                    />
+                        <form onSubmit={deleteUser} className="space-y-4">
+                            <div>
+                                <InputLabel htmlFor="password" value="Konfirmasi dengan password Anda" className="text-sm font-medium text-gray-700" />
+                                <TextInput
+                                    id="password"
+                                    type="password"
+                                    className="mt-1 block w-full rounded-xl border-gray-300 focus:border-red-500 focus:ring-red-500 shadow-sm"
+                                    value={data.password}
+                                    onChange={(e) => setData('password', e.target.value)}
+                                    placeholder="Masukkan password Anda"
+                                    autoFocus
+                                />
+                                <InputError message={errors.password} className="mt-2" />
+                            </div>
 
-                    <TextInput
-                        id="current_password"
-                        ref={currentPasswordInput}
-                        value={data.current_password}
-                        onChange={(e) =>
-                            setData('current_password', e.target.value)
-                        }
-                        type="password"
-                        className="mt-1 block w-full"
-                        autoComplete="current-password"
-                    />
-
-                    <InputError
-                        message={errors.current_password}
-                        className="mt-2"
-                    />
+                            <div className="flex justify-end gap-3 pt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setConfirmingUserDeletion(false);
+                                        reset();
+                                    }}
+                                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-xl transition-all font-medium text-sm"
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={processing}
+                                    className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-xl font-medium shadow-sm shadow-red-200 transition-all disabled:opacity-50"
+                                >
+                                    Hapus Permanen
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
-
-                <div>
-                    <InputLabel htmlFor="password" value="New Password" />
-
-                    <TextInput
-                        id="password"
-                        ref={passwordInput}
-                        value={data.password}
-                        onChange={(e) => setData('password', e.target.value)}
-                        type="password"
-                        className="mt-1 block w-full"
-                        autoComplete="new-password"
-                    />
-
-                    <InputError message={errors.password} className="mt-2" />
-                </div>
-
-                <div>
-                    <InputLabel
-                        htmlFor="password_confirmation"
-                        value="Confirm Password"
-                    />
-
-                    <TextInput
-                        id="password_confirmation"
-                        value={data.password_confirmation}
-                        onChange={(e) =>
-                            setData('password_confirmation', e.target.value)
-                        }
-                        type="password"
-                        className="mt-1 block w-full"
-                        autoComplete="new-password"
-                    />
-
-                    <InputError
-                        message={errors.password_confirmation}
-                        className="mt-2"
-                    />
-                </div>
-
-                <div className="flex items-center gap-4">
-                    <PrimaryButton disabled={processing}>Save</PrimaryButton>
-
-                    <Transition
-                        show={recentlySuccessful}
-                        enter="transition ease-in-out"
-                        enterFrom="opacity-0"
-                        leave="transition ease-in-out"
-                        leaveTo="opacity-0"
-                    >
-                        <p className="text-sm text-gray-600">
-                            Saved.
-                        </p>
-                    </Transition>
-                </div>
-            </form>
+            )}
         </section>
     );
 }
