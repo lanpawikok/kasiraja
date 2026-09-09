@@ -11,7 +11,7 @@ const INITIAL_PRODUCTS = [
   { id: 6, name: 'Nasi Goreng Spesial', price: 50000, category: 'Makanan', stock: 15, icon: 'lunch_dining' },
 ];
 
-export default function Dashboard() {
+export default function KasirDashboard() {
   const { auth } = usePage().props;
 
   // Ambil role user
@@ -33,21 +33,15 @@ export default function Dashboard() {
   const [customerName, setCustomerName] = useState('');
   const [tableNumber, setTableNumber] = useState('');
 
+  // State untuk Modal Pembayaran
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [tempNote, setTempNote] = useState('');
 
   // State untuk Modal Manage Inventory & Modal Tambah Menu
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
-
-  // Form State untuk Tambah Menu Baru
-  const [newMenu, setNewMenu] = useState({
-    name: '',
-    price: '',
-    category: 'Kopi',
-    stock: '',
-    icon: 'local_cafe'
-  });
 
   // Menambah produk ke keranjang
   const addToCart = (product) => {
@@ -137,6 +131,13 @@ export default function Dashboard() {
 
   // Handler untuk Proses Pembayaran
   const handleCheckout = () => {
+    setIsPaymentModalOpen(true);
+  };
+
+  // Handler untuk menyelesaikan pembayaran
+  const handlePaymentComplete = (paymentMethod = 'CASH') => {
+    setIsPaymentModalOpen(false);
+
     router.post(route('checkout.process'), {
       cart: cart,
       subtotal: subtotal,
@@ -145,6 +146,21 @@ export default function Dashboard() {
       orderNote: orderNote,
       customerName: customerName,
       tableNumber: tableNumber,
+      payment_method: paymentMethod,
+      cash_paid: paymentMethod === 'CASH' ? total : total,
+    }, {
+      preserveScroll: true,
+      onError: (errors) => {
+        alert('Terjadi kesalahan saat melakukan checkout');
+        console.error(errors);
+      },
+      onFinish: () => {
+        // Reset form setelah transaksi berhasil
+        setCart([]);
+        setOrderNote('');
+        setCustomerName('');
+        setTableNumber('');
+      }
     });
   };
 
@@ -441,16 +457,16 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Tombol Bayar */}
+                {/* Tombol Cetak Struk */}
                 <button
                   type="button"
                   onClick={handleCheckout}
                   className="w-full bg-primary text-on-primary h-[64px] rounded-xl flex items-center justify-center gap-2 hover:bg-primary/90 active:scale-[0.98] transition-all shadow-md group cursor-pointer relative z-30 pointer-events-auto"
                 >
                   <span className="font-pos-price text-pos-price tracking-wide">
-                    Bayar {(total / 1000).toFixed(0)}k
+                    Cetak Struk {(total / 1000).toFixed(0)}k
                   </span>
-                  <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                  <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">print</span>
                 </button>
               </div>
             </aside>
@@ -590,6 +606,124 @@ export default function Dashboard() {
                     className="px-5 py-2 rounded-xl bg-primary text-white font-medium hover:bg-primary/90 transition-colors text-sm shadow-sm cursor-pointer"
                   >
                     Simpan Catatan
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal Pembayaran */}
+          {isPaymentModalOpen && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl flex flex-col gap-6 animate-in fade-in zoom-in-95 duration-150">
+                <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+                  <h3 className="font-bold text-xl text-slate-800 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary">payment</span>
+                    Pilih Metode Pembayaran
+                  </h3>
+                  <button
+                    onClick={() => setIsPaymentModalOpen(false)}
+                    className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined">close</span>
+                  </button>
+                </div>
+
+                {/* Ringkasan Order */}
+                <div className="bg-slate-50 rounded-xl p-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-600">Pelanggan:</span>
+                    <span className="font-medium">{customerName || '-'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-600">Meja:</span>
+                    <span className="font-medium">{tableNumber || '-'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-600">Kategori:</span>
+                    <span className="font-medium">{cart.length} Item</span>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-slate-700">Pilih metode pembayaran:</p>
+
+                  <button
+                    onClick={() => handlePaymentComplete('CASH')}
+                    className="w-full flex items-center justify-between p-4 border-2 border-primary/20 rounded-xl hover:border-primary hover:bg-primary/5 transition-all group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <span className="material-symbols-outlined text-primary">paid</span>
+                      </div>
+                      <div className="text-left">
+                        <span className="block font-semibold text-slate-800">Tunai (Cash)</span>
+                        <span className="text-xs text-slate-500">Bayar dengan uang tunai</span>
+                      </div>
+                    </div>
+                    <span className="material-symbols-outlined text-slate-300 group-hover:text-primary">chevron_right</span>
+                  </button>
+
+                  <button
+                    onClick={() => handlePaymentComplete('QRIS')}
+                    className="w-full flex items-center justify-between p-4 border-2 border-slate-100 rounded-xl hover:border-slate-300 hover:bg-slate-50 transition-all group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
+                        <span className="material-symbols-outlined text-slate-600">qr_code_2</span>
+                      </div>
+                      <div className="text-left">
+                        <span className="block font-semibold text-slate-800">QRIS / QR Code</span>
+                        <span className="text-xs text-slate-500">Bayar dengan QRIS</span>
+                      </div>
+                    </div>
+                    <span className="material-symbols-outlined text-slate-300 group-hover:text-slate-400">chevron_right</span>
+                  </button>
+
+                  <button
+                    onClick={() => handlePaymentComplete('TRANSFER')}
+                    className="w-full flex items-center justify-between p-4 border-2 border-slate-100 rounded-xl hover:border-slate-300 hover:bg-slate-50 transition-all group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
+                        <span className="material-symbols-outlined text-slate-600">account_balance</span>
+                      </div>
+                      <div className="text-left">
+                        <span className="block font-semibold text-slate-800">Transfer</span>
+                        <span className="text-xs text-slate-500">Bayar via transfer bank</span>
+                      </div>
+                    </div>
+                    <span className="material-symbols-outlined text-slate-300 group-hover:text-slate-400">chevron_right</span>
+                  </button>
+
+                  <button
+                    onClick={() => handlePaymentComplete('DEBIT')}
+                    className="w-full flex items-center justify-between p-4 border-2 border-slate-100 rounded-xl hover:border-slate-300 hover:bg-slate-50 transition-all group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
+                        <span className="material-symbols-outlined text-slate-600">credit_card</span>
+                      </div>
+                      <div className="text-left">
+                        <span className="block font-semibold text-slate-800">Debit Card</span>
+                        <span className="text-xs text-slate-500">Bayar dengan kartu debit</span>
+                      </div>
+                    </div>
+                    <span className="material-symbols-outlined text-slate-300 group-hover:text-slate-400">chevron_right</span>
+                  </button>
+                </div>
+
+                <div className="border-t border-slate-100 pt-4">
+                  <div className="flex justify-between items-center text-lg font-bold text-slate-800 mb-4">
+                    <span>Total Pembayaran</span>
+                    <span className="text-primary">Rp {total.toLocaleString('id-ID')}</span>
+                  </div>
+
+                  <button
+                    onClick={() => setIsPaymentModalOpen(false)}
+                    className="w-full py-3 px-4 border border-slate-200 rounded-xl text-slate-600 font-medium hover:bg-slate-50 text-sm transition-colors cursor-pointer"
+                  >
+                    Kembali ke Keranjang
                   </button>
                 </div>
               </div>

@@ -2,7 +2,6 @@ import React, { useState, useRef } from 'react';
 import { Link } from '@inertiajs/react';
 
 export default function ReceiptPreview({ order }) {
-    // Tangkap data order dari backend, tambahkan customerName
     const currentOrder = {
         id: order?.id || 'ORD-0842',
         date: order?.date || '24 Okt 2023, 14:30',
@@ -17,20 +16,22 @@ export default function ReceiptPreview({ order }) {
     };
 
     const [activeIndex, setActiveIndex] = useState(0);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [printMode, setPrintMode] = useState('all'); // 'all', 'customer', 'kitchen', 'bar'
     const containerRef = useRef(null);
 
-    const subtotal = currentOrder.backendSubtotal !== undefined 
-        ? currentOrder.backendSubtotal 
+    const subtotal = currentOrder.backendSubtotal !== undefined
+        ? currentOrder.backendSubtotal
         : currentOrder.items.reduce((acc, item) => acc + (item.price * item.qty), 0);
-        
-    const tax = currentOrder.backendTax !== undefined 
-        ? currentOrder.backendTax 
+
+    const tax = currentOrder.backendTax !== undefined
+        ? currentOrder.backendTax
         : subtotal * 0.10;
 
     const service = subtotal * 0.05;
 
-    const total = currentOrder.backendTotal !== undefined 
-        ? currentOrder.backendTotal + service 
+    const total = currentOrder.backendTotal !== undefined
+        ? currentOrder.backendTotal + service
         : subtotal + tax + service;
 
     const change = currentOrder.cashPaid - total;
@@ -59,9 +60,17 @@ export default function ReceiptPreview({ order }) {
         setActiveIndex(index);
     };
 
+    const handleExecutePrint = (mode) => {
+        setPrintMode(mode);
+        setTimeout(() => {
+            window.print();
+            setIsModalOpen(false);
+        }, 100);
+    };
+
     return (
         <div className="bg-[#f8f9ff] text-[#121c28] min-h-screen flex flex-col font-['Inter',sans-serif]">
-            {/* CSS khusus print */}
+            {/* CSS khusus print yang dinamis sesuai printMode */}
             <style dangerouslySetInnerHTML={{ __html: `
                 @media print {
                     body * {
@@ -81,6 +90,13 @@ export default function ReceiptPreview({ order }) {
                         align-items: center !important;
                     }
                     .printable-card {
+                        display: none !important;
+                    }
+                    ${printMode === 'all' || printMode === 'customer' ? '.receipt-customer { display: flex !important; }' : ''}
+                    ${printMode === 'all' || printMode === 'kitchen' ? '.receipt-kitchen { display: flex !important; }' : ''}
+                    ${printMode === 'all' || printMode === 'bar' ? '.receipt-bar { display: flex !important; }' : ''}
+
+                    .printable-card {
                         opacity: 1 !important;
                         transform: none !important;
                         box-shadow: none !important;
@@ -92,19 +108,21 @@ export default function ReceiptPreview({ order }) {
 
             {/* Header web */}
             <header className="bg-white text-[#173124] flex justify-between items-center px-4 md:px-6 w-full h-16 shadow-sm z-10 sticky top-0 print:hidden">
-                <div className="flex items-center gap-4">
-                    <Link href="/dashboard" className="hover:bg-slate-100 p-2 rounded-full text-slate-700">
-                        <span className="material-symbols-outlined">arrow_back</span>
+                <div className="flex items-center gap-3">
+                    <Link
+                        href="/dashboard"
+                        className="flex items-center gap-2 hover:bg-slate-100 px-3 py-1.5 rounded-lg text-slate-700 transition-colors"
+                    >
+                        <span className="material-symbols-outlined text-xl">arrow_back</span>
+                        <span className="text-sm font-semibold hidden sm:inline">Dashboard</span>
                     </Link>
-                    <h1 className="text-xl font-bold text-[#173124]">Mie Gachor </h1>
+                    <span className="text-slate-300">|</span>
+                    <h1 className="text-xl font-bold text-[#173124]">Mie Gachor</h1>
                 </div>
-                <button onClick={() => window.print()} className="p-2 rounded-full text-slate-700 hover:bg-slate-100">
-                    <span className="material-symbols-outlined">print</span>
-                </button>
             </header>
 
             <main className="flex-grow flex flex-col overflow-hidden px-4 py-6 md:px-12">
-                <div className="mb-6 flex justify-between items-end print:hidden">
+                <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4 print:hidden">
                     <div>
                         <h2 className="text-2xl font-semibold text-[#121c28]">Preview Struk</h2>
                         <p className="text-base text-slate-600 mt-1">
@@ -112,18 +130,37 @@ export default function ReceiptPreview({ order }) {
                         </p>
                     </div>
 
-                    <div className="hidden md:flex bg-slate-200 rounded-full p-1 gap-1">
-                        {['Customer', 'Dapur', 'Bar'].map((tab, idx) => (
-                            <button
-                                key={tab}
-                                onClick={() => scrollToReceipt(idx)}
-                                className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
-                                    activeIndex === idx ? 'bg-[#fe932c] text-[#663500] shadow-sm' : 'text-slate-700 hover:bg-slate-300'
-                                }`}
-                            >
-                                {tab}
-                            </button>
-                        ))}
+                    <div className="flex items-center gap-3 flex-wrap">
+                        <Link
+                            href="/dashboard"
+                            className="flex items-center gap-2 bg-slate-200 text-slate-700 px-4 py-2.5 rounded-full font-medium hover:bg-slate-300 transition-colors shadow-sm"
+                        >
+                            <span className="material-symbols-outlined text-xl">dashboard</span>
+                            <span>Dashboard</span>
+                        </Link>
+
+                        {/* Tombol Cetak Struk Utama */}
+                        <button
+                            onClick={() => setIsModalOpen(true)}
+                            className="flex items-center gap-2 bg-[#173124] text-white px-5 py-2.5 rounded-full font-medium hover:bg-[#234735] transition-colors shadow-sm"
+                        >
+                            <span className="material-symbols-outlined text-xl">print</span>
+                            <span>Cetak Struk</span>
+                        </button>
+
+                        <div className="hidden md:flex bg-slate-200 rounded-full p-1 gap-1">
+                            {['Customer', 'Dapur', 'Bar'].map((tab, idx) => (
+                                <button
+                                    key={tab}
+                                    onClick={() => scrollToReceipt(idx)}
+                                    className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
+                                        activeIndex === idx ? 'bg-[#fe932c] text-[#663500] shadow-sm' : 'text-slate-700 hover:bg-slate-300'
+                                    }`}
+                                >
+                                    {tab}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
@@ -134,26 +171,26 @@ export default function ReceiptPreview({ order }) {
                     style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
                     {/* 1. Customer Copy */}
-                    <ReceiptCard 
-                        active={activeIndex === 0} 
+                    <ReceiptCard
+                        active={activeIndex === 0}
                         onClick={() => scrollToReceipt(0)}
+                        className="receipt-customer"
                     >
                         <div className="text-center mb-4 flex flex-col items-center">
                             <h3 className="font-bold text-lg">Mie Gachor</h3>
                             <p className="text-xs text-slate-600 mt-1">Jl. Vetaran</p>
-                            
-                            {/* Logo sedikit diperbesar menggunakan w-24 h-24 */}
-                            <img 
-                                src="/images/logo.png" 
-                                alt="Logo Mie Gachor" 
-                                className="w-24 h-24 object-contain mt-3 filter grayscale" 
+
+                            <img
+                                src="/images/logo.png"
+                                alt="Logo Mie Gachor"
+                                className="w-24 h-24 object-contain mt-3 filter grayscale"
                             />
                         </div>
                         <ReceiptDivider />
                         <ReceiptRow left={`No: ${currentOrder.id}`} right={currentOrder.date} />
                         <ReceiptRow left={`Pelanggan: ${currentOrder.customerName}`} right={`Meja: ${currentOrder.table}`} />
                         <ReceiptDivider />
-                        
+
                         <div className="flex-grow font-['Courier_New',Courier,monospace]">
                             {currentOrder.items.length > 0 ? (
                                 currentOrder.items.map((item, idx) => (
@@ -179,7 +216,7 @@ export default function ReceiptPreview({ order }) {
                         <ReceiptRow left="PB1 (10%)" right={tax.toLocaleString('id-ID')} small />
                         <ReceiptRow left="Service (5%)" right={service.toLocaleString('id-ID')} small />
                         <ReceiptDivider />
-                        
+
                         <div className="flex justify-between font-bold text-base mb-2 font-['Courier_New',Courier,monospace]">
                             <span>TOTAL</span>
                             <span>{total.toLocaleString('id-ID')}</span>
@@ -189,10 +226,11 @@ export default function ReceiptPreview({ order }) {
                     </ReceiptCard>
 
                     {/* 2. Kitchen Copy (Dapur) */}
-                    <ReceiptCard 
-                        active={activeIndex === 1} 
-                        onClick={() => scrollToReceipt(1)} 
+                    <ReceiptCard
+                        active={activeIndex === 1}
+                        onClick={() => scrollToReceipt(1)}
                         bg="bg-[#f0f8ff]"
+                        className="receipt-kitchen"
                     >
                         <div className="text-center mb-4"><h3 className="font-bold text-xl uppercase tracking-widest text-[#2d4739]">DAPUR</h3></div>
                         <div className="border-t border-dashed border-[#2d4739] my-3"></div>
@@ -212,10 +250,11 @@ export default function ReceiptPreview({ order }) {
                     </ReceiptCard>
 
                     {/* 3. Bar Copy */}
-                    <ReceiptCard 
-                        active={activeIndex === 2} 
-                        onClick={() => scrollToReceipt(2)} 
+                    <ReceiptCard
+                        active={activeIndex === 2}
+                        onClick={() => scrollToReceipt(2)}
                         bg="bg-[#fff0f5]"
+                        className="receipt-bar"
                     >
                         <div className="text-center mb-4"><h3 className="font-bold text-xl uppercase tracking-widest text-[#5a3939]">BAR</h3></div>
                         <div className="border-t border-dashed border-[#5a3939] my-3"></div>
@@ -235,13 +274,104 @@ export default function ReceiptPreview({ order }) {
                     </ReceiptCard>
                 </div>
             </main>
+
+            {/* Modal / Pop-up pilihan cetak */}
+            {isModalOpen && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 print:hidden">
+                    <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl transition-all transform scale-100">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold text-slate-800">Pilih Struk yang Ingin Dicetak</h3>
+                            <button
+                                onClick={() => setIsModalOpen(false)}
+                                className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100"
+                            >
+                                <span className="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
+
+                        <p className="text-sm text-slate-500 mb-6">
+                            Silakan pilih opsi pencetakan di bawah ini sesuai dengan kebutuhan operasional:
+                        </p>
+
+                        <div className="flex flex-col gap-3 mb-6">
+                            <button
+                                onClick={() => handleExecutePrint('all')}
+                                className="flex items-center justify-between p-3.5 border border-slate-200 rounded-xl hover:border-[#fe932c] hover:bg-orange-50 transition-all text-left font-medium text-slate-800"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <span className="material-symbols-outlined text-orange-500">print</span>
+                                    <div>
+                                        <p className="font-semibold text-sm">Cetak Semua Struk</p>
+                                        <p className="text-xs text-slate-500">Customer + Dapur + Bar</p>
+                                    </div>
+                                </div>
+                                <span className="material-symbols-outlined text-slate-400">chevron_right</span>
+                            </button>
+
+                            <button
+                                onClick={() => handleExecutePrint('customer')}
+                                className="flex items-center justify-between p-3.5 border border-slate-200 rounded-xl hover:border-[#fe932c] hover:bg-orange-50 transition-all text-left font-medium text-slate-800"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <span className="material-symbols-outlined text-slate-700">receipt_long</span>
+                                    <div>
+                                        <p className="font-semibold text-sm">Struk Pelanggan Sahaja</p>
+                                        <p className="text-xs text-slate-500">Customer Copy</p>
+                                    </div>
+                                </div>
+                                <span className="material-symbols-outlined text-slate-400">chevron_right</span>
+                            </button>
+
+                            <button
+                                onClick={() => handleExecutePrint('kitchen')}
+                                className="flex items-center justify-between p-3.5 border border-slate-200 rounded-xl hover:border-[#fe932c] hover:bg-orange-50 transition-all text-left font-medium text-slate-800"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <span className="material-symbols-outlined text-emerald-600">skillet</span>
+                                    <div>
+                                        <p className="font-semibold text-sm">Struk Dapur</p>
+                                        <p className="text-xs text-slate-500">Hanya makanan</p>
+                                    </div>
+                                </div>
+                                <span className="material-symbols-outlined text-slate-400">chevron_right</span>
+                            </button>
+
+                            <button
+                                onClick={() => handleExecutePrint('bar')}
+                                className="flex items-center justify-between p-3.5 border border-slate-200 rounded-xl hover:border-[#fe932c] hover:bg-orange-50 transition-all text-left font-medium text-slate-800"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <span className="material-symbols-outlined text-rose-500">local_bar</span>
+                                    <div>
+                                        <p className="font-semibold text-sm">Struk Bar</p>
+                                        <p className="text-xs text-slate-500">Hanya minuman</p>
+                                    </div>
+                                </div>
+                                <span className="material-symbols-outlined text-slate-400">chevron_right</span>
+                            </button>
+                        </div>
+
+                        <div className="flex justify-end">
+                            <button
+                                onClick={() => setIsModalOpen(false)}
+                                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-colors"
+                            >
+                                Batal
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
 
-function ReceiptCard({ active, onClick, children, bg = 'bg-white' }) {
+function ReceiptCard({ active, onClick, children, bg = 'bg-white', className = '' }) {
     return (
-        <div onClick={onClick} className={`snap-center shrink-0 w-[300px] md:w-[350px] p-6 flex flex-col text-sm text-[#121c28] font-['Courier_New',Courier,monospace] ${bg} transition-all cursor-pointer printable-card ${active ? 'opacity-100 scale-100 shadow-xl ring-2 ring-[#496455]' : 'opacity-90 scale-95 shadow-md'}`}>
+        <div
+            onClick={onClick}
+            className={`snap-center shrink-0 w-[300px] md:w-[350px] p-6 flex flex-col text-sm text-[#121c28] font-['Courier_New',Courier,monospace] ${bg} transition-all cursor-pointer printable-card ${active ? 'opacity-100 scale-100 shadow-xl ring-2 ring-[#496455]' : 'opacity-90 scale-95 shadow-md'} ${className}`}
+        >
             {children}
         </div>
     );

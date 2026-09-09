@@ -52,7 +52,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('/process', [OrderController::class, 'processCheckout'])->name('process');
         });
 
-        Route::get('/receipt-preview', [OrderController::class, 'previewReceipt'])->name('receipt.preview');
+        Route::get('/', [OrderController::class, 'previewReceipt'])->name('receipt.preview');
     });
 
     // === HALAMAN MANAJEMEN ADMIN ===
