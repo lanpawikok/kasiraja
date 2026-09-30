@@ -90,6 +90,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // === HALAMAN MANAJEMEN ADMIN ===
     Route::middleware('role:admin')->group(function () {
+        Route::post('/products', [ProductController::class, 'store'])->name('products.store');
         Route::put('/products/{product}', [ProductController::class, 'update'])->name('products.update');
         Route::get('/manage-inventory', [InventoryController::class, 'index'])->name('manage-inventory');
         Route::post('/manage-inventory', [InventoryController::class, 'store'])->name('inventory.store');

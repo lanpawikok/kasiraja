@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import PageSidebar from '@/Components/PageSidebar';
 
@@ -25,6 +25,9 @@ export default function Dashboard({ catalogProducts = [] }) {
   console.log('Is Admin:', isAdmin);
 
   const [products, setProducts] = useState(catalogProducts.length > 0 ? catalogProducts : INITIAL_PRODUCTS);
+  useEffect(() => {
+    if (catalogProducts.length > 0) setProducts(catalogProducts);
+  }, [catalogProducts]);
   const [cart, setCart] = useState([]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('Semua');
@@ -145,26 +148,48 @@ export default function Dashboard({ catalogProducts = [] }) {
     });
   };
 
-  // Handler Submit Tambah Menu Baru
+  const [newMenuProcessing, setNewMenuProcessing] = useState(false);
+  const [newMenuImage, setNewMenuImage] = useState(null);
+
   const handleAddProductSubmit = (e) => {
     e.preventDefault();
     if (!newMenu.name || !newMenu.price || !newMenu.stock) {
       showToast('Harap isi semua bidang menu.', 'error');
       return;
     }
-
-    const createdProduct = {
-      id: Date.now(),
+    setNewMenuProcessing(true);
+    const payload = {
       name: newMenu.name,
-      price: parseFloat(newMenu.price),
+      price: newMenu.price,
       category: newMenu.category,
-      stock: parseInt(newMenu.stock),
-      icon: newMenu.icon || 'local_cafe'
+      stock: newMenu.stock,
+      icon: newMenu.icon || 'local_cafe',
     };
-
-    setProducts((prev) => [createdProduct, ...prev]);
-    setIsAddMenuOpen(false);
-    setNewMenu({ name: '', price: '', category: 'Kopi', stock: '', icon: 'local_cafe' });
+    const hasImage = !!newMenuImage;
+    const url = route('products.store');
+    const options = {
+      preserveScroll: true,
+      onSuccess: () => {
+        setIsAddMenuOpen(false);
+        setNewMenu({ name: '', price: '', category: 'Kopi', stock: '', icon: 'local_cafe' });
+        setNewMenuImage(null);
+        showToast('Menu berhasil ditambahkan dan tersimpan di database.');
+        router.reload({ only: ['catalogProducts'] });
+      },
+      onError: (errors) => {
+        const msg = errors?.name || errors?.price || errors?.stock || errors?.message || 'Gagal menambah menu. Pastikan login sebagai admin.';
+        showToast(String(msg), 'error');
+      },
+      onFinish: () => setNewMenuProcessing(false),
+    };
+    if (hasImage) {
+      const fd = new FormData();
+      Object.entries(payload).forEach(([k, v]) => fd.append(k, v));
+      fd.append('image', newMenuImage);
+      router.post(url, fd, { ...options, forceFormData: true });
+    } else {
+      router.post(url, payload, options);
+    }
   };
 
   // Mengosongkan keranjang
@@ -877,20 +902,15 @@ export default function Dashboard({ catalogProducts = [] }) {
                     </div>
                   </div>
 
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Foto Produk (opsional)</label>
+                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setNewMenuImage(e.target.files?.[0] || null)} className="w-full block rounded-xl border border-slate-200 p-2 text-sm text-slate-800 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-emerald-700" />
+                    <span className="mt-1 block text-[11px] text-slate-400">JPG, PNG, WebP maksimal 2 MB.</span>
+                  </div>
+
                   <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 mt-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsAddMenuOpen(false)}
-                      className="px-4 py-2 rounded-xl text-slate-600 font-medium hover:bg-slate-100 text-sm cursor-pointer"
-                    >
-                      Batal
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-5 py-2 rounded-xl bg-primary text-white font-medium hover:bg-primary/90 text-sm shadow-sm cursor-pointer"
-                    >
-                      Simpan Menu
-                    </button>
+                    <button type="button" onClick={() => setIsAddMenuOpen(false)} className="px-4 py-2 rounded-xl text-slate-600 font-medium hover:bg-slate-100 text-sm cursor-pointer">Batal</button>
+                    <button type="submit" disabled={newMenuProcessing} className="px-5 py-2 rounded-xl bg-primary text-white font-medium hover:bg-primary/90 text-sm shadow-sm cursor-pointer disabled:opacity-50">{newMenuProcessing ? 'Menyimpan...' : 'Simpan Menu'}</button>
                   </div>
                 </form>
               </div>
