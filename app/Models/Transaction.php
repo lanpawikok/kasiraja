@@ -11,6 +11,7 @@ class Transaction extends Model
     protected $fillable = [
         'invoice_number',
         'user_id',
+        'santri_id',
         'total_amount',
         'pay_amount',
         'change_amount',
@@ -32,6 +33,11 @@ class Transaction extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function santri(): BelongsTo
+    {
+        return $this->belongsTo(Santri::class);
     }
 
     /**

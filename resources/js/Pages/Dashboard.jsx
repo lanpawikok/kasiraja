@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
+import PageSidebar from '@/Components/PageSidebar';
 
 // Daftar Produk Awal
 const INITIAL_PRODUCTS = [
@@ -11,7 +12,7 @@ const INITIAL_PRODUCTS = [
   { id: 6, name: 'Nasi Goreng Spesial', price: 50000, category: 'Makanan', stock: 15, icon: 'lunch_dining' },
 ];
 
-export default function Dashboard() {
+export default function Dashboard({ catalogProducts = [] }) {
   const { auth } = usePage().props;
 
   // Ambil role user
@@ -23,7 +24,7 @@ export default function Dashboard() {
   console.log('User Role:', userRole);
   console.log('Is Admin:', isAdmin);
 
-  const [products, setProducts] = useState(INITIAL_PRODUCTS);
+  const [products, setProducts] = useState(catalogProducts.length > 0 ? catalogProducts : INITIAL_PRODUCTS);
   const [cart, setCart] = useState([]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('Semua');
@@ -32,6 +33,16 @@ export default function Dashboard() {
   const [orderNote, setOrderNote] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [tableNumber, setTableNumber] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('deposit');
+  const [depositAmount, setDepositAmount] = useState('');
+  const [depositProcessing, setDepositProcessing] = useState(false);
+  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+  const [santriBalance, setSantriBalance] = useState(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
+  const [balanceError, setBalanceError] = useState('');
+  const [santriHistory, setSantriHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [toast, setToast] = useState(null);
 
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [tempNote, setTempNote] = useState('');
@@ -39,6 +50,10 @@ export default function Dashboard() {
   // State untuk Modal Manage Inventory & Modal Tambah Menu
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [editProductForm, setEditProductForm] = useState({});
+  const [editProductImage, setEditProductImage] = useState(null);
+  const [editProductProcessing, setEditProductProcessing] = useState(false);
 
   // Form State untuk Tambah Menu Baru
   const [newMenu, setNewMenu] = useState({
@@ -49,10 +64,15 @@ export default function Dashboard() {
     icon: 'local_cafe'
   });
 
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    window.setTimeout(() => setToast(null), 4200);
+  };
+
   // Menambah produk ke keranjang
   const addToCart = (product) => {
     if (product.stock <= 0) {
-      alert("Stok produk habis!");
+      showToast('Stok produk habis.', 'error');
       return;
     }
     setCart((prevCart) => {
@@ -89,11 +109,47 @@ export default function Dashboard() {
     );
   };
 
+  const openProductEditor = (product) => {
+    setEditingProduct(product);
+    setEditProductForm({
+      name: product.name,
+      price: product.price,
+      stock: product.stock,
+      category: product.category,
+      icon: product.icon || 'restaurant',
+    });
+    setEditProductImage(null);
+  };
+
+  const handleProductUpdate = (event) => {
+    event.preventDefault();
+    if (!editingProduct || !catalogProducts.length) {
+      showToast('Produk demo belum tersimpan di katalog database.', 'error');
+      return;
+    }
+
+    const formData = new FormData();
+    Object.entries(editProductForm).forEach(([key, value]) => formData.append(key, value));
+    if (editProductImage) formData.append('image', editProductImage);
+    formData.append('_method', 'PUT');
+    setEditProductProcessing(true);
+
+    router.post(route('products.update', editingProduct.id), formData, {
+      forceFormData: true,
+      onSuccess: () => {
+        setEditingProduct(null);
+        showToast('Produk dan foto berhasil diperbarui.');
+      },
+      onError: () => showToast('Produk gagal diperbarui. Periksa data dan ukuran foto.', 'error'),
+      onFinish: () => setEditProductProcessing(false),
+    });
+  };
+
   // Handler Submit Tambah Menu Baru
   const handleAddProductSubmit = (e) => {
     e.preventDefault();
     if (!newMenu.name || !newMenu.price || !newMenu.stock) {
-      alert("Harap isi semua bidang!");
+      showToast('Harap isi semua bidang menu.', 'error');
       return;
     }
 
@@ -130,6 +186,87 @@ export default function Dashboard() {
     setIsNoteModalOpen(false);
   };
 
+  const handleDeposit = () => {
+    if (!customerName.trim() || !depositAmount || Number(depositAmount) <= 0) {
+      showToast('Isi nama santri dan nominal deposit yang valid.', 'error');
+      return;
+    }
+
+    setDepositProcessing(true);
+    router.post(route('santri.deposit'), {
+      name: customerName,
+      amount: Number(depositAmount),
+    }, {
+      preserveScroll: true,
+      onSuccess: () => {
+        setDepositAmount('');
+        setIsDepositModalOpen(false);
+        showToast('Deposit berhasil ditambahkan. Saldo otomatis mengurangi utang jika ada.');
+      },
+      onFinish: () => setDepositProcessing(false),
+    });
+  };
+
+  const handleCheckBalance = async () => {
+    if (!customerName.trim()) {
+      setBalanceError('Masukkan nama santri terlebih dahulu.');
+      setSantriBalance(null);
+      return;
+    }
+
+    setBalanceLoading(true);
+    setBalanceError('');
+
+    try {
+      const response = await fetch(`${route('santri.balance')}?name=${encodeURIComponent(customerName)}`, {
+        headers: { Accept: 'application/json' },
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.message || 'Saldo santri tidak ditemukan.');
+      }
+
+      const result = await response.json();
+      setSantriBalance(Number(result.balance));
+    } catch (error) {
+      setSantriBalance(null);
+      setBalanceError(error.message);
+    } finally {
+      setBalanceLoading(false);
+    }
+  };
+
+  const handleLoadHistory = async () => {
+    if (!customerName.trim()) {
+      setBalanceError('Masukkan nama santri terlebih dahulu.');
+      return;
+    }
+
+    setHistoryLoading(true);
+    setBalanceError('');
+
+    try {
+      const response = await fetch(`${route('santri.history')}?name=${encodeURIComponent(customerName)}`, {
+        headers: { Accept: 'application/json' },
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.message || 'Riwayat santri tidak ditemukan.');
+      }
+
+      const result = await response.json();
+      setSantriBalance(Number(result.balance));
+      setSantriHistory(result.entries || []);
+    } catch (error) {
+      setSantriHistory([]);
+      setBalanceError(error.message);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   // Perhitungan Subtotal dan Pajak
   const subtotal = cart.reduce((acc, item) => acc + item.price * item.qty, 0);
   const tax = subtotal * 0.1;
@@ -145,6 +282,7 @@ export default function Dashboard() {
       orderNote: orderNote,
       customerName: customerName,
       tableNumber: tableNumber,
+      paymentMethod: paymentMethod,
     });
   };
 
@@ -171,15 +309,20 @@ export default function Dashboard() {
         }
       `}</style>
 
-      <div className="bg-background text-on-background font-body-md h-screen overflow-hidden flex flex-col">
+      <div className="bg-background text-on-background font-body-md h-[100dvh] min-h-[100dvh] overflow-hidden flex flex-col">
+        <PageSidebar
+          onAddMenu={() => setIsAddMenuOpen(true)}
+          onDeposit={() => setIsDepositModalOpen(true)}
+          showActions
+        />
         {/* TopAppBar */}
-        <header className="flex justify-between items-center px-md h-pos-touch-target w-full fixed top-0 z-50 bg-surface shadow-sm border-b border-outline-variant/20">
+        <header className="fixed top-0 z-50 flex h-pos-touch-target w-full items-center justify-between border-b border-outline-variant/20 bg-surface pl-16 pr-3 shadow-sm sm:pl-16 sm:pr-6 lg:hidden">
           <div className="flex items-center gap-md">
             <div className="flex items-center gap-sm">
               <button className="text-primary hover:bg-primary-container/10 transition-colors p-sm rounded-full flex items-center justify-center cursor-pointer">
                 <span className="material-symbols-outlined">storefront</span>
               </button>
-              <h1 className="text-headline-md font-bold text-primary">Mie Ghacor</h1>
+              <h1 className="text-headline-md font-bold text-primary">Kanakana</h1>
             </div>
 
             {/* Admin Menu - hanya muncul jika isAdmin true */}
@@ -236,16 +379,24 @@ export default function Dashboard() {
             >
               <span className="material-symbols-outlined">account_circle</span>
             </Link>
+            <button
+              type="button"
+              onClick={() => setIsDepositModalOpen(true)}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-primary text-on-primary rounded-lg text-xs font-semibold hover:bg-primary/90 transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[16px]">account_balance_wallet</span>
+              Deposit Santri
+            </button>
           </div>
         </header>
 
         {/* Main Layout */}
-        <main className="flex-1 flex flex-row mt-pos-touch-target overflow-hidden relative">
+        <main className="relative mt-pos-touch-target flex min-h-0 flex-1 flex-row overflow-hidden lg:ml-72 lg:mt-0">
 
           {/* Left Pane: Product Grid & Filters */}
           <section className="flex-1 flex flex-col bg-surface overflow-hidden relative z-0 pb-pos-touch-target md:pb-0 transition-all">
             {/* Search & Filters */}
-            <div className="p-md bg-surface border-b border-outline-variant/30 flex flex-col gap-sm shrink-0">
+            <div className="shrink-0 border-b border-outline-variant/30 bg-surface p-3 sm:p-md">
               <div className="relative w-full">
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">
                   search
@@ -256,7 +407,7 @@ export default function Dashboard() {
                   type="text"
                 />
               </div>
-              <div className="flex gap-sm overflow-x-auto no-scrollbar py-1">
+              <div className="mt-2 flex gap-sm overflow-x-auto py-1 no-scrollbar">
                 {['Semua', 'Kopi', 'Non-Kopi', 'Makanan', 'Pastry'].map((cat) => (
                   <button
                     key={cat}
@@ -274,13 +425,21 @@ export default function Dashboard() {
             </div>
 
             {/* Product Grid */}
-            <div className="flex-1 overflow-y-auto p-md grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-md content-start">
+            <div className="grid min-h-0 flex-1 grid-cols-2 content-start gap-3 overflow-y-auto p-3 pb-20 sm:grid-cols-3 sm:gap-md sm:p-md sm:pb-6 lg:grid-cols-4">
               {filteredProducts.map((product) => {
                 const cartItem = cart.find((item) => item.id === product.id);
                 return (
-                  <button
+                  <div
                     key={product.id}
                     onClick={() => addToCart(product)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        addToCart(product);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
                     className={`group flex flex-col bg-surface-container-lowest rounded-xl overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)] border active:bg-surface-container-low transition-all text-left relative min-h-[160px] cursor-pointer ${
                       cartItem ? 'border-2 border-primary' : 'border-transparent hover:border-outline-variant'
                     }`}
@@ -291,6 +450,19 @@ export default function Dashboard() {
                       </div>
                     )}
                     <div className="h-28 w-full bg-surface-variant overflow-hidden relative flex items-center justify-center">
+                      {isAdmin && catalogProducts.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openProductEditor(product);
+                          }}
+                          className="absolute right-2 top-2 z-20 flex h-8 w-8 items-center justify-center rounded-lg bg-white/90 text-primary shadow-md hover:bg-white"
+                          title="Edit produk"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">edit</span>
+                        </button>
+                      )}
                       {product.image ? (
                         <img
                           alt={product.name}
@@ -312,7 +484,7 @@ export default function Dashboard() {
                         {(product.price / 1000).toFixed(0)}k
                       </p>
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -321,7 +493,7 @@ export default function Dashboard() {
           {/* Right Pane: Order Summary */}
           {cart.length > 0 && (
             <aside
-              className={`fixed inset-y-0 right-0 w-[85%] max-w-[400px] bg-surface-container-lowest shadow-[-4px_0_24px_rgba(0,0,0,0.08)] z-40 transform transition-all duration-300 md:relative md:translate-x-0 md:w-[360px] lg:w-[420px] flex flex-col border-l border-outline-variant/30 pt-pos-touch-target md:pt-0 ${
+              className={`fixed inset-y-0 right-0 z-[60] flex h-[100dvh] w-[min(100vw,25rem)] max-w-full transform flex-col border-l border-outline-variant/30 bg-surface-container-lowest pt-pos-touch-target shadow-[-4px_0_24px_rgba(0,0,0,0.08)] transition-all duration-300 md:relative md:z-auto md:h-auto md:w-[360px] md:translate-x-0 md:pt-0 lg:w-[420px] ${
                 isDrawerOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'
               }`}
             >
@@ -345,19 +517,38 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Input Nama Pelanggan & Nomor Meja */}
+              {/* Input Santri, Deposit & Nomor Meja */}
               <div className="px-md pt-3 pb-2 bg-surface-container-lowest border-b border-outline-variant/20 grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[11px] font-semibold text-on-surface-variant mb-1">Nama Pelanggan</label>
+                  <label className="block text-[11px] font-semibold text-on-surface-variant mb-1">Nama Santri</label>
                   <input
                     type="text"
-                    placeholder="cth: Budi"
+                    placeholder="cth: Ahmad"
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                     className="w-full p-2 bg-surface border border-outline-variant rounded-lg text-xs text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
                 <div>
+                  <label className="block text-[11px] font-semibold text-on-surface-variant mb-1">Nominal Deposit</label>
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="cth: 250000"
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(e.target.value)}
+                    className="w-full p-2 bg-surface border border-outline-variant rounded-lg text-xs text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDeposit}
+                  disabled={depositProcessing}
+                  className="col-span-2 py-2 rounded-lg border border-primary text-primary text-xs font-semibold hover:bg-primary/10 disabled:opacity-50"
+                >
+                  {depositProcessing ? 'Memproses Deposit...' : 'Tambah Deposit / Bayar Utang'}
+                </button>
+                <div className="col-span-2">
                   <label className="block text-[11px] font-semibold text-on-surface-variant mb-1">Nomor Meja</label>
                   <input
                     type="text"
@@ -441,6 +632,40 @@ export default function Dashboard() {
                   </div>
                 </div>
 
+                <div>
+                  <p className="mb-2 text-xs font-semibold text-on-surface-variant">Metode Pembayaran</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { value: 'deposit', label: 'Saldo Deposit', icon: 'account_balance_wallet' },
+                      { value: 'cash', label: 'Cash', icon: 'payments' },
+                    ].map((method) => (
+                      <button
+                        key={method.value}
+                        type="button"
+                        onClick={() => setPaymentMethod(method.value)}
+                        className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-3 text-xs font-bold transition ${
+                          paymentMethod === method.value
+                            ? 'border-primary bg-primary text-on-primary shadow-sm'
+                            : 'border-outline-variant bg-surface text-on-surface-variant hover:border-primary'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-[18px]">{method.icon}</span>
+                        {method.label}
+                      </button>
+                    ))}
+                  </div>
+                  {paymentMethod === 'deposit' && (
+                    <p className="mt-2 text-[11px] text-primary">
+                      Saldo santri akan dipotong. Jika tidak cukup, saldo dapat menjadi utang.
+                    </p>
+                  )}
+                  {paymentMethod === 'cash' && (
+                    <p className="mt-2 text-[11px] text-on-surface-variant">
+                      Pembayaran cash tidak memotong saldo deposit santri.
+                    </p>
+                  )}
+                </div>
+
                 {/* Tombol Bayar */}
                 <button
                   type="button"
@@ -448,7 +673,7 @@ export default function Dashboard() {
                   className="w-full bg-primary text-on-primary h-[64px] rounded-xl flex items-center justify-center gap-2 hover:bg-primary/90 active:scale-[0.98] transition-all shadow-md group cursor-pointer relative z-30 pointer-events-auto"
                 >
                   <span className="font-pos-price text-pos-price tracking-wide">
-                    Bayar {(total / 1000).toFixed(0)}k
+                    Bayar {paymentMethod === 'cash' ? 'Cash' : 'Saldo'} {(total / 1000).toFixed(0)}k
                   </span>
                   <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
                 </button>
@@ -456,10 +681,125 @@ export default function Dashboard() {
             </aside>
           )}
 
+          {isDepositModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
+                <div className="flex items-center justify-between mb-5">
+                  <h2 className="text-lg font-bold text-on-surface">Deposit Santri</h2>
+                  <button
+                    type="button"
+                    onClick={() => setIsDepositModalOpen(false)}
+                    className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant"
+                  >
+                    <span className="material-symbols-outlined">close</span>
+                  </button>
+                </div>
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-on-surface-variant mb-1">Nama Santri</label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: Ahmad"
+                      value={customerName}
+                      onChange={(event) => setCustomerName(event.target.value)}
+                      className="w-full p-3 bg-surface border border-outline-variant rounded-lg text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-on-surface-variant mb-1">Nominal Deposit</label>
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="Contoh: 250000"
+                      value={depositAmount}
+                      onChange={(event) => setDepositAmount(event.target.value)}
+                      className="w-full p-3 bg-surface border border-outline-variant rounded-lg text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCheckBalance}
+                    disabled={balanceLoading}
+                    className="w-full py-2 rounded-lg border border-outline-variant text-on-surface text-sm font-semibold hover:bg-surface-container disabled:opacity-50"
+                  >
+                    {balanceLoading ? 'Mengecek Saldo...' : 'Cek Saldo Santri'}
+                  </button>
+                  {santriBalance !== null && (
+                    <div className={`rounded-lg p-3 ${santriBalance < 0 ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                      <p className="text-xs font-semibold">Saldo {customerName}</p>
+                      <p className="text-lg font-bold">
+                        Rp {Math.abs(santriBalance).toLocaleString('id-ID')}
+                        {santriBalance < 0 ? ' (Utang)' : ''}
+                      </p>
+                    </div>
+                  )}
+                  {balanceError && <p className="text-xs text-red-600">{balanceError}</p>}
+                  <button
+                    type="button"
+                    onClick={handleLoadHistory}
+                    disabled={historyLoading}
+                    className="w-full py-2 rounded-lg border border-outline-variant text-on-surface text-sm font-semibold hover:bg-surface-container disabled:opacity-50"
+                  >
+                    {historyLoading ? 'Memuat Riwayat...' : 'Lihat Jajan Hari Ini'}
+                  </button>
+                  {santriHistory.length > 0 && (
+                    <div className="max-h-48 overflow-y-auto rounded-lg border border-outline-variant/50">
+                      {santriHistory.map((entry) => (
+                        <div key={entry.id} className="p-2 border-b last:border-b-0 border-outline-variant/30 text-xs">
+                          <div className="flex justify-between gap-2">
+                            <span className="font-semibold">
+                              {entry.type === 'purchase' ? 'Belanja' : 'Deposit'}
+                            </span>
+                            <span>{new Date(entry.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                          {entry.type === 'purchase' ? (
+                            <div className="mt-1 text-on-surface-variant">
+                              {(entry.details?.items || []).map((item) => (
+                                <div key={`${entry.id}-${item.name}`}>
+                                  {item.name} x{item.qty} - Rp {(item.price * item.qty).toLocaleString('id-ID')}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="mt-1 text-emerald-700">
+                              Deposit Rp {Number(entry.amount).toLocaleString('id-ID')}
+                            </div>
+                          )}
+                          <div className="mt-1 font-semibold">
+                            Saldo: Rp {Number(entry.balance_after).toLocaleString('id-ID')}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {santriHistory.length > 0 && (
+                    <a
+                      href={`${route('santri.history.export')}?name=${encodeURIComponent(customerName)}`}
+                      className="w-full py-2 rounded-lg bg-slate-700 text-white text-sm font-semibold text-center hover:bg-slate-800"
+                    >
+                      Export Riwayat CSV
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleDeposit}
+                    disabled={depositProcessing}
+                    className="w-full py-3 rounded-lg bg-primary text-on-primary font-semibold disabled:opacity-50"
+                  >
+                    {depositProcessing ? 'Memproses...' : 'Simpan Deposit'}
+                  </button>
+                  <p className="text-xs text-on-surface-variant">
+                    Deposit baru otomatis mengurangi utang jika saldo santri sedang minus.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Modal Tambah Menu Baru */}
           {isAddMenuOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col gap-4 overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150 sm:p-6">
                 <div className="flex justify-between items-center border-b border-slate-100 pb-3">
                   <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary">add_circle</span>
@@ -483,7 +823,7 @@ export default function Dashboard() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-1">Harga (Rp)</label>
                       <input
@@ -508,7 +848,7 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-1">Kategori</label>
                       <select
@@ -560,7 +900,7 @@ export default function Dashboard() {
           {/* Modal Input Catatan */}
           {isNoteModalOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col gap-4 overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150 sm:p-6">
                 <div className="flex justify-between items-center border-b border-slate-100 pb-3">
                   <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary">edit_note</span>
@@ -596,12 +936,111 @@ export default function Dashboard() {
             </div>
           )}
 
+          {editingProduct && (
+            <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+              <form onSubmit={handleProductUpdate} className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-4 shadow-2xl sm:p-6">
+                <div className="mb-5 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#b38735]">Katalog Produk</p>
+                    <h2 className="text-xl font-bold text-[#173f2d]">Edit Produk</h2>
+                  </div>
+                  <button type="button" onClick={() => setEditingProduct(null)} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100">
+                    <span className="material-symbols-outlined">close</span>
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  <label className="block text-xs font-semibold text-slate-600">Nama Produk
+                    <input required value={editProductForm.name || ''} onChange={(event) => setEditProductForm({ ...editProductForm, name: event.target.value })} className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-sm text-slate-800" />
+                  </label>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <label className="block text-xs font-semibold text-slate-600">Harga
+                      <input required type="number" min="0" value={editProductForm.price || ''} onChange={(event) => setEditProductForm({ ...editProductForm, price: event.target.value })} className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-sm text-slate-800" />
+                    </label>
+                    <label className="block text-xs font-semibold text-slate-600">Stok
+                      <input required type="number" min="0" value={editProductForm.stock || ''} onChange={(event) => setEditProductForm({ ...editProductForm, stock: event.target.value })} className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-sm text-slate-800" />
+                    </label>
+                  </div>
+                  <label className="block text-xs font-semibold text-slate-600">Kategori
+                    <select value={editProductForm.category || ''} onChange={(event) => setEditProductForm({ ...editProductForm, category: event.target.value })} className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-sm text-slate-800">
+                      <option>Kopi</option>
+                      <option>Non-Kopi</option>
+                      <option>Makanan</option>
+                      <option>Pastry</option>
+                    </select>
+                  </label>
+                  <label className="block text-xs font-semibold text-slate-600">Foto Produk
+                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setEditProductImage(event.target.files?.[0] || null)} className="mt-1 block w-full rounded-xl border border-slate-200 p-2 text-sm text-slate-800 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-emerald-700" />
+                    <span className="mt-1 block text-[11px] text-slate-400">JPG, PNG, atau WebP maksimal 2 MB.</span>
+                  </label>
+                </div>
+                <div className="mt-6 flex justify-end gap-2">
+                  <button type="button" onClick={() => setEditingProduct(null)} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">Batal</button>
+                  <button type="submit" disabled={editProductProcessing} className="rounded-xl bg-primary px-5 py-2 text-sm font-bold text-on-primary disabled:opacity-50">
+                    {editProductProcessing ? 'Menyimpan...' : 'Simpan Perubahan'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {toast && (
+            <div className="pointer-events-none fixed bottom-6 right-6 z-[80] flex w-[calc(100%-3rem)] justify-end sm:w-auto">
+              <div className={`pointer-events-auto relative w-full max-w-lg overflow-hidden rounded-3xl border shadow-[0_24px_70px_rgba(16,41,31,0.28)] backdrop-blur-xl animate-in slide-in-from-bottom-5 fade-in zoom-in-95 duration-500 ${
+                toast.type === 'error'
+                  ? 'border-red-200 bg-red-50/98 text-red-900'
+                  : 'border-[#d6ae5c]/60 bg-white/98 text-[#173f2d]'
+              }`}>
+                <div className={`h-1.5 w-full ${
+                  toast.type === 'error' ? 'bg-red-500' : 'bg-gradient-to-r from-[#173f2d] via-[#d6ae5c] to-[#173f2d]'
+                }`} />
+                <div className="flex items-center gap-4 p-5 sm:p-6">
+                  <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl shadow-inner ${
+                    toast.type === 'error' ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-700'
+                  }`}>
+                    <span className="material-symbols-outlined text-[32px]">
+                      {toast.type === 'error' ? 'error' : 'check_circle'}
+                    </span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-xs font-extrabold uppercase tracking-[0.2em] ${
+                      toast.type === 'error' ? 'text-red-600' : 'text-[#b38735]'
+                    }`}>
+                      {toast.type === 'error' ? 'Perlu perhatian' : 'Transaksi berhasil'}
+                    </p>
+                    <p className="mt-1 text-base font-bold leading-6 sm:text-lg">{toast.message}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setToast(null)}
+                    className="self-start rounded-xl p-2 opacity-50 transition hover:bg-black/5 hover:opacity-100"
+                    aria-label="Tutup notifikasi"
+                  >
+                    <span className="material-symbols-outlined">close</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Overlay Mobile */}
           {isDrawerOpen && cart.length > 0 && (
             <div
               className="fixed inset-0 bg-on-surface/40 z-30 md:hidden backdrop-blur-sm transition-opacity"
               onClick={() => setIsDrawerOpen(false)}
             ></div>
+          )}
+          {cart.length > 0 && !isDrawerOpen && (
+            <button
+              type="button"
+              onClick={() => setIsDrawerOpen(true)}
+              className="fixed inset-x-4 bottom-4 z-20 flex min-h-12 items-center justify-between rounded-xl bg-primary px-4 py-3 font-semibold text-on-primary shadow-xl md:hidden"
+            >
+              <span className="flex items-center gap-2">
+                <span className="material-symbols-outlined">shopping_bag</span>
+                Keranjang ({cart.reduce((count, item) => count + item.qty, 0)})
+              </span>
+              <span>Rp {total.toLocaleString('id-ID')}</span>
+            </button>
           )}
         </main>
       </div>

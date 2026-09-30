@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Attendance;
 use Inertia\Inertia;
 use Carbon\Carbon;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttendanceController extends Controller
 {
@@ -58,6 +59,50 @@ class AttendanceController extends Controller
         $attendance->delete();
 
         return redirect()->back();
+    }
+
+    public function export(Request $request): StreamedResponse
+    {
+        $validated = $request->validate([
+            'period' => 'required|in:day,month',
+            'date' => 'required_if:period,day|nullable|date_format:Y-m-d',
+            'month' => 'required_if:period,month|nullable|date_format:Y-m',
+        ]);
+
+        $query = Attendance::query()->orderBy('date')->orderBy('time');
+        $period = $validated['period'];
+
+        if ($period === 'day') {
+            $date = $validated['date'];
+            $query->where('date', $date);
+            $filename = "laporan-absen-{$date}.csv";
+            $label = "Harian ({$date})";
+        } else {
+            $month = Carbon::createFromFormat('Y-m', $validated['month']);
+            $query->whereBetween('date', [
+                $month->copy()->startOfMonth()->toDateString(),
+                $month->copy()->endOfMonth()->toDateString(),
+            ]);
+            $filename = "laporan-absen-{$validated['month']}.csv";
+            $label = "Bulanan ({$month->translatedFormat('F Y')})";
+        }
+
+        return response()->streamDownload(function () use ($query, $label) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['Laporan Absensi', $label]);
+            fputcsv($handle, ['Nama Karyawan', 'Tanggal', 'Jam', 'Status']);
+
+            $query->cursor()->each(function (Attendance $attendance) use ($handle) {
+                fputcsv($handle, [
+                    $attendance->staff_id,
+                    $attendance->date,
+                    $attendance->time,
+                    $attendance->status,
+                ]);
+            });
+
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     // Tampilan Form Input Nama di HP Karyawan saat Scan QR

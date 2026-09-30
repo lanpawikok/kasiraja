@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Link } from '@inertiajs/react';
+import PageSidebar from '@/Components/PageSidebar';
 
 export default function ReceiptPreview({ order }) {
     const currentOrder = {
@@ -69,7 +70,8 @@ export default function ReceiptPreview({ order }) {
     };
 
     return (
-        <div className="bg-[#f8f9ff] text-[#121c28] min-h-screen flex flex-col font-['Inter',sans-serif]">
+        <div className="bg-[#f8f9ff] text-[#121c28] min-h-screen flex flex-col font-['Inter',sans-serif] lg:pl-72">
+            <PageSidebar />
             {/* CSS khusus print yang dinamis sesuai printMode */}
             <style dangerouslySetInnerHTML={{ __html: `
                 @media print {
@@ -107,7 +109,7 @@ export default function ReceiptPreview({ order }) {
             ` }} />
 
             {/* Header web */}
-            <header className="bg-white text-[#173124] flex justify-between items-center px-4 md:px-6 w-full h-16 shadow-sm z-10 sticky top-0 print:hidden">
+            <header className="hidden bg-white text-[#173124] flex justify-between items-center px-4 md:px-6 w-full h-16 shadow-sm z-10 sticky top-0 print:hidden">
                 <div className="flex items-center gap-3">
                     <Link
                         href="/dashboard"
@@ -117,11 +119,11 @@ export default function ReceiptPreview({ order }) {
                         <span className="text-sm font-semibold hidden sm:inline">Dashboard</span>
                     </Link>
                     <span className="text-slate-300">|</span>
-                    <h1 className="text-xl font-bold text-[#173124]">Mie Gachor</h1>
+                    <h1 className="text-xl font-bold text-[#173124]">Kanakana</h1>
                 </div>
             </header>
 
-            <main className="flex-grow flex flex-col overflow-hidden px-4 py-6 md:px-12">
+            <main className="flex-grow flex flex-col overflow-hidden px-4 pt-20 pb-6 sm:px-6 sm:pt-20 md:px-12 lg:pt-6">
                 <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4 print:hidden">
                     <div>
                         <h2 className="text-2xl font-semibold text-[#121c28]">Preview Struk</h2>
@@ -177,12 +179,12 @@ export default function ReceiptPreview({ order }) {
                         className="receipt-customer"
                     >
                         <div className="text-center mb-4 flex flex-col items-center">
-                            <h3 className="font-bold text-lg">Mie Gachor</h3>
+                            <h3 className="font-bold text-lg">Kanakana</h3>
                             <p className="text-xs text-slate-600 mt-1">Jl. Vetaran</p>
 
                             <img
                                 src="/images/logo.png"
-                                alt="Logo Mie Gachor"
+                                alt="Logo Kanakana"
                                 className="w-24 h-24 object-contain mt-3 filter grayscale"
                             />
                         </div>
@@ -223,6 +225,13 @@ export default function ReceiptPreview({ order }) {
                         </div>
                         <ReceiptRow left={currentOrder.paymentMethod} right={currentOrder.cashPaid.toLocaleString('id-ID')} small />
                         <ReceiptRow left="Kembali" right={change.toLocaleString('id-ID')} small />
+                        {currentOrder.santriBalance !== undefined && (
+                            <ReceiptRow
+                                left="Saldo Santri"
+                                right={Number(currentOrder.santriBalance).toLocaleString('id-ID')}
+                                small
+                            />
+                        )}
                     </ReceiptCard>
 
                     {/* 2. Kitchen Copy (Dapur) */}

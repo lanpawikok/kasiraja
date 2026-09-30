@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link, useForm } from "@inertiajs/react";
+import PageSidebar from "@/Components/PageSidebar";
 
 export default function ManageInventory({ inventories = [] }) {
     const [activeTab, setActiveTab] = useState("Inventory");
@@ -66,15 +67,16 @@ export default function ManageInventory({ inventories = [] }) {
     ];
 
     return (
-        <div className="bg-[#f8f9ff] text-[#121c28] min-h-screen pb-safe font-sans">
+        <div className="bg-[#f8f9ff] text-[#121c28] min-h-screen pb-safe font-sans lg:pl-72">
+            <PageSidebar />
             {/* Top Navigation Bar */}
-            <header className="fixed top-0 w-full z-50 bg-[#f8f9ff] shadow-sm text-[#173124] flex justify-between items-center px-4 h-14 border-b border-[#d9e3f4]">
+            <header className="hidden fixed top-0 w-full z-50 bg-[#f8f9ff] shadow-sm text-[#173124] flex justify-between items-center px-4 h-14 border-b border-[#d9e3f4]">
                 <div className="flex items-center gap-2">
                     <span className="material-symbols-outlined text-[#173124]">
                         storefront
                     </span>
                     <span className="text-xl font-bold text-[#173124]">
-                        Mie Ghacor
+                        Kanakana
                     </span>
                 </div>
 
@@ -123,7 +125,7 @@ export default function ManageInventory({ inventories = [] }) {
                                         Admin Kasir
                                     </p>
                                     <p className="text-xs text-[#424844]">
-                                        admin@mieghacor.com
+                                        admin@kanakana.com
                                     </p>
                                 </div>
                                 <Link
@@ -157,7 +159,7 @@ export default function ManageInventory({ inventories = [] }) {
 
             {/* Mobile Navigation Drawer */}
             {isMobileMenuOpen && (
-                <div className="md:hidden fixed inset-x-0 top-14 bg-white border-b border-[#d9e3f4] shadow-lg z-40 p-4 space-y-2">
+                <div className="hidden md:hidden fixed inset-x-0 top-14 bg-white border-b border-[#d9e3f4] shadow-lg z-40 p-4 space-y-2">
                     {navLinks.map((link) => (
                         <Link
                             key={link.name}
@@ -287,7 +289,7 @@ export default function ManageInventory({ inventories = [] }) {
             {/* Modal Input Bahan Baru */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <div className="bg-white rounded-2xl w-full max-w-lg p-6 shadow-xl border border-[#d9e3f4]">
+                    <div className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-[#d9e3f4] bg-white p-4 shadow-xl sm:p-6">
                         <div className="flex justify-between items-center mb-4 border-b border-[#d9e3f4] pb-3">
                             <h3 className="text-lg font-bold text-[#121c28]">
                                 Input Bahan Baku Baru
@@ -316,7 +318,7 @@ export default function ManageInventory({ inventories = [] }) {
                                 {errors.name && <span className="text-xs text-red-500">{errors.name}</span>}
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div>
                                     <label className="block text-xs font-semibold text-[#424844] mb-1">
                                         Kategori
@@ -347,7 +349,7 @@ export default function ManageInventory({ inventories = [] }) {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div>
                                     <label className="block text-xs font-semibold text-[#424844] mb-1">
                                         Jumlah (Qty)
@@ -417,7 +419,7 @@ export default function ManageInventory({ inventories = [] }) {
             {/* Modal Edit Stok */}
             {isEditModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <div className="bg-white rounded-2xl w-full max-w-lg p-6 shadow-xl border border-[#d9e3f4]">
+                    <div className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-[#d9e3f4] bg-white p-4 shadow-xl sm:p-6">
                         <div className="flex justify-between items-center mb-4 border-b border-[#d9e3f4] pb-3">
                             <h3 className="text-lg font-bold text-[#121c28]">
                                 Edit Stok & Bahan Baku
@@ -444,7 +446,7 @@ export default function ManageInventory({ inventories = [] }) {
                                 />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div>
                                     <label className="block text-xs font-semibold text-[#424844] mb-1">
                                         Kategori
@@ -471,7 +473,7 @@ export default function ManageInventory({ inventories = [] }) {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div>
                                     <label className="block text-xs font-semibold text-[#424844] mb-1">
                                         Jumlah (Qty)

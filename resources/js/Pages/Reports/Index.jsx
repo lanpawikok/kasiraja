@@ -1,8 +1,16 @@
-import React, { useState } from "react";
-import { Link } from "@inertiajs/react";
+import React, { useEffect, useState } from "react";
+import { Link, router } from "@inertiajs/react";
+import PageSidebar from "@/Components/PageSidebar";
 
-export default function ReportsAndAudit({ summary = { total_expense: 1561000 } }) {
+export default function ReportsAndAudit({ summary = {}, dailySales = [], monthlyTrend = [], selectedMonth }) {
     const totalExpense = summary.total_expense;
+    useEffect(() => {
+        const refresh = window.setInterval(() => {
+            router.reload({ only: ["summary", "dailySales", "selectedMonth"], preserveScroll: true, preserveState: true });
+        }, 5000);
+
+        return () => window.clearInterval(refresh);
+    }, []);
     // State untuk menangani interaktivitas Stock Opname
     const [stockItems, setStockItems] = useState([
         {
@@ -43,10 +51,11 @@ export default function ReportsAndAudit({ summary = { total_expense: 1561000 } }
 
     // Fungsi format rupiah dinamis
     const formatRupiah = (number) => {
-        if (number >= 1000000) {
-            return `Rp ${(number / 1000000).toFixed(1)}M`.replace('.', ',');
+        const amount = Number(number) || 0;
+        if (amount >= 1000000) {
+            return `Rp ${(amount / 1000000).toFixed(1).replace('.', ',')} juta`;
         }
-        return `Rp ${number.toLocaleString('id-ID')}`;
+        return `Rp ${amount.toLocaleString('id-ID')}`;
     };
 
     const handleStockChange = (id, value) => {
@@ -81,15 +90,16 @@ export default function ReportsAndAudit({ summary = { total_expense: 1561000 } }
     ];
 
     return (
-        <div className="bg-[#f8f9ff] text-[#121c28] min-h-screen pb-safe font-sans">
+        <div className="bg-[#f8f9ff] text-[#121c28] min-h-screen pb-safe font-sans lg:pl-72">
+            <PageSidebar />
             {/* Top Navigation Bar */}
-            <header className="fixed top-0 w-full z-50 bg-[#f8f9ff] shadow-sm text-[#173124] flex justify-between items-center px-4 h-14 border-b border-[#d9e3f4]">
+            <header className="hidden fixed top-0 w-full z-50 bg-[#f8f9ff] shadow-sm text-[#173124] flex justify-between items-center px-4 h-14 border-b border-[#d9e3f4]">
                 <div className="flex items-center gap-2">
                     <span className="material-symbols-outlined text-[#173124]">
                         storefront
                     </span>
                     <span className="text-xl font-bold text-[#173124]">
-                        Mie Ghacor
+                        Kanakana
                     </span>
                 </div>
 
@@ -176,7 +186,7 @@ export default function ReportsAndAudit({ summary = { total_expense: 1561000 } }
 
             {/* Mobile Navigation Drawer */}
             {isMobileMenuOpen && (
-                <div className="md:hidden fixed inset-x-0 top-14 bg-white border-b border-[#d9e3f4] shadow-lg z-40 p-4 space-y-2">
+                <div className="hidden md:hidden fixed inset-x-0 top-14 bg-white border-b border-[#d9e3f4] shadow-lg z-40 p-4 space-y-2">
                     {navLinks.map((link) => (
                         <Link
                             key={link.name}
@@ -215,17 +225,24 @@ export default function ReportsAndAudit({ summary = { total_expense: 1561000 } }
                         <span className="material-symbols-outlined text-[#424844] mr-2">
                             calendar_month
                         </span>
-                        <select className="bg-transparent border-none text-sm font-semibold text-[#121c28] focus:ring-0 cursor-pointer outline-none">
-                            <option value="2026-09">September 2026 (Aktif)</option>
+                        <select value={selectedMonth} onChange={(event) => { window.location.href = `${route("laporan.index")}?month=${event.target.value}`; }} className="bg-transparent border-none text-sm font-semibold text-[#121c28] focus:ring-0 cursor-pointer outline-none">
+                            <option value={selectedMonth}>{new Date(`${selectedMonth}-01T00:00:00`).toLocaleDateString("id-ID", { month: "long", year: "numeric" })} (Aktif)</option>
                             <option value="2026-08">Agustus 2026</option>
                             <option value="2026-07">Juli 2026</option>
                         </select>
                     </div>
+                    <a
+                        href={`${route("laporan.export.monthly")}?month=${selectedMonth}`}
+                        className="inline-flex items-center gap-2 rounded-xl bg-[#173f2d] px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-[#234735]"
+                    >
+                        <span className="material-symbols-outlined text-[18px]">download</span>
+                        Download Laporan Bulanan
+                    </a>
                 </div>
 
                 {/* Financial Trend Chart Section */}
                 <div className="bg-white rounded-xl p-6 shadow-sm border border-[#d9e3f4] mb-6">
-                    <div className="flex justify-between items-center mb-6 border-b border-[#d9e3f4] pb-4">
+                    <div className="mb-6 flex flex-col items-start justify-between gap-4 border-b border-[#d9e3f4] pb-4 sm:flex-row sm:items-center">
                         <div>
                             <h3 className="text-xl font-semibold text-[#121c28]">
                                 Tren Keuangan Bulanan
@@ -234,7 +251,7 @@ export default function ReportsAndAudit({ summary = { total_expense: 1561000 } }
                                 Perbandingan Pendapatan vs Pengeluaran
                             </p>
                         </div>
-                        <div className="flex gap-4">
+                        <div className="flex flex-wrap gap-2 sm:gap-4">
                             <div className="flex items-center gap-1 bg-[#2d4739]/10 px-3 py-1 rounded-full">
                                 <div className="w-3 h-3 rounded-full bg-[#2d4739]"></div>
                                 <span className="text-xs font-semibold text-[#2d4739]">
@@ -250,98 +267,44 @@ export default function ReportsAndAudit({ summary = { total_expense: 1561000 } }
                         </div>
                     </div>
 
-                    <div className="relative h-64 w-full flex items-end gap-4 px-4 pt-4">
+                    <div className="relative h-64 w-full overflow-x-auto">
+                        <div className="relative flex h-64 min-w-[520px] items-end gap-4 px-4 pt-4">
                         <div className="absolute left-0 top-0 bottom-8 w-12 flex flex-col justify-between text-[10px] text-[#424844] text-right pr-2 pb-4">
-                            <span>50M</span>
-                            <span>40M</span>
-                            <span>30M</span>
-                            <span>20M</span>
-                            <span>10M</span>
+                            <span>Rp {Math.max(...monthlyTrend.flatMap((item) => [item.income, item.expense]), 0).toLocaleString("id-ID")}</span>
+                            <span>Rp {Math.round(Math.max(...monthlyTrend.flatMap((item) => [item.income, item.expense]), 0) * 0.75).toLocaleString("id-ID")}</span>
+                            <span>Rp {Math.round(Math.max(...monthlyTrend.flatMap((item) => [item.income, item.expense]), 0) * 0.5).toLocaleString("id-ID")}</span>
+                            <span>Rp {Math.round(Math.max(...monthlyTrend.flatMap((item) => [item.income, item.expense]), 0) * 0.25).toLocaleString("id-ID")}</span>
                             <span>0</span>
                         </div>
                         <div className="flex-1 h-full flex items-end gap-4 ml-10 border-l border-b border-[#d9e3f4] pb-1">
-                            {/* Month Column - Jul */}
-                            <div className="flex-1 flex flex-col gap-2 items-center group h-full justify-end relative">
+                            {monthlyTrend.map((item) => {
+                                const maximum = Math.max(...monthlyTrend.flatMap((trend) => [trend.income, trend.expense]), 1);
+                                return (
+                            <div key={item.label} className="flex-1 flex flex-col gap-2 items-center group h-full justify-end relative">
                                 <div className="w-full flex justify-center items-end gap-2 h-full">
-                                    <div className="bg-[#2d4739] w-1/3 h-[60%] rounded-t opacity-90 group-hover:opacity-100 transition-all duration-200 relative group-hover:-translate-y-1">
-                                        <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-[#2d4739] opacity-0 group-hover:opacity-100 transition-opacity bg-white px-1 py-0.5 rounded shadow border border-[#d9e3f4]">
-                                            30M
+                                    <div className="bg-[#2d4739] w-1/3 rounded-t transition-all duration-200 relative group-hover:-translate-y-1 shadow" style={{ height: `${Math.max((item.income / maximum) * 100, item.income ? 2 : 0)}%` }}>
+                                        <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-[#2d4739] bg-white px-1 py-0.5 rounded shadow border border-[#d9e3f4] opacity-0 group-hover:opacity-100">
+                                            Rp {item.income.toLocaleString("id-ID")}
                                         </span>
                                     </div>
-                                    <div className="bg-[#e57373] w-1/3 h-[40%] rounded-t opacity-90 group-hover:opacity-100 transition-all duration-200 relative group-hover:-translate-y-1">
-                                        <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-[#e57373] opacity-0 group-hover:opacity-100 transition-opacity bg-white px-1 py-0.5 rounded shadow border border-[#d9e3f4]">
-                                            20M
+                                    <div className="bg-[#e57373] w-1/3 rounded-t transition-all duration-200 relative group-hover:-translate-y-1 shadow" style={{ height: `${Math.max((item.expense / maximum) * 100, item.expense ? 2 : 0)}%` }}>
+                                        <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-[#e57373] bg-white px-1 py-0.5 rounded shadow border border-[#d9e3f4] opacity-0 group-hover:opacity-100">
+                                            Rp {item.expense.toLocaleString("id-ID")}
                                         </span>
                                     </div>
                                 </div>
-                                <span className="text-xs font-semibold text-[#424844] mt-2">
-                                    Jul
-                                </span>
+                                <span className="text-xs font-semibold text-[#424844] mt-2">{item.label}</span>
                             </div>
-
-                            {/* Month Column - Agu */}
-                            <div className="flex-1 flex flex-col gap-2 items-center group h-full justify-end relative">
-                                <div className="w-full flex justify-center items-end gap-2 h-full">
-                                    <div className="bg-[#2d4739] w-1/3 h-[75%] rounded-t opacity-90 group-hover:opacity-100 transition-all duration-200 relative group-hover:-translate-y-1">
-                                        <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-[#2d4739] opacity-0 group-hover:opacity-100 transition-opacity bg-white px-1 py-0.5 rounded shadow border border-[#d9e3f4]">
-                                            37.5M
-                                        </span>
-                                    </div>
-                                    <div className="bg-[#e57373] w-1/3 h-[45%] rounded-t opacity-90 group-hover:opacity-100 transition-all duration-200 relative group-hover:-translate-y-1">
-                                        <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-[#e57373] opacity-0 group-hover:opacity-100 transition-opacity bg-white px-1 py-0.5 rounded shadow border border-[#d9e3f4]">
-                                            22.5M
-                                        </span>
-                                    </div>
-                                </div>
-                                <span className="text-xs font-semibold text-[#424844] mt-2">
-                                    Agu
-                                </span>
-                            </div>
-
-                            {/* Month Column - Sep */}
-                            <div className="flex-1 flex flex-col gap-2 items-center group h-full justify-end relative">
-                                <div className="w-full flex justify-center items-end gap-2 h-full">
-                                    <div className="bg-[#2d4739] w-1/3 h-[85%] rounded-t opacity-90 group-hover:opacity-100 transition-all duration-200 relative group-hover:-translate-y-1">
-                                        <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-[#2d4739] opacity-0 group-hover:opacity-100 transition-opacity bg-white px-1 py-0.5 rounded shadow border border-[#d9e3f4]">
-                                            42.5M
-                                        </span>
-                                    </div>
-                                    <div className="bg-[#e57373] w-1/3 h-[50%] rounded-t opacity-90 group-hover:opacity-100 transition-all duration-200 relative group-hover:-translate-y-1">
-                                        <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-[#e57373] opacity-0 group-hover:opacity-100 transition-opacity bg-white px-1 py-0.5 rounded shadow border border-[#d9e3f4]">
-                                            25M
-                                        </span>
-                                    </div>
-                                </div>
-                                <span className="text-xs font-semibold text-[#424844] mt-2">
-                                    Sep
-                                </span>
-                            </div>
-
-                            {/* Month Column - Okt */}
-                            <div className="flex-1 flex flex-col gap-2 items-center group h-full justify-end relative">
-                                <div className="w-full flex justify-center items-end gap-2 h-full">
-                                    <div className="bg-[#2d4739] w-1/3 h-[95%] rounded-t opacity-100 transition-all duration-200 relative group-hover:-translate-y-1 shadow">
-                                        <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-[#2d4739] bg-white px-1 py-0.5 rounded shadow border border-[#d9e3f4]">
-                                            42.5M
-                                        </span>
-                                    </div>
-                                    <div className="bg-[#e57373] w-1/3 h-[42%] rounded-t opacity-100 transition-all duration-200 relative group-hover:-translate-y-1 shadow">
-                                        <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-[#e57373] bg-white px-1 py-0.5 rounded shadow border border-[#d9e3f4]">
-                                            18.2M
-                                        </span>
-                                    </div>
-                                </div>
-                                <span className="text-xs font-semibold text-[#2d4739] mt-2 bg-[#2d4739]/10 px-2 py-0.5 rounded-full">
-                                    Okt
-                                </span>
-                            </div>
+                                );
+                            })}
                         </div>
+                    </div>
                     </div>
                 </div>
 
                 {/* Attendance Chart Section */}
-                <div className="bg-white rounded-xl p-6 shadow-sm border border-[#d9e3f4] mb-6">
-                    <div className="flex justify-between items-center mb-6 border-b border-[#d9e3f4] pb-4">
+                <div className="mb-6 rounded-xl border border-[#d9e3f4] bg-white p-4 shadow-sm sm:p-6">
+                    <div className="mb-6 flex flex-col items-start justify-between gap-4 border-b border-[#d9e3f4] pb-4 sm:flex-row sm:items-center">
                         <div>
                             <h3 className="text-xl font-semibold text-[#121c28]">
                                 Grafik Kehadiran Karyawan
@@ -350,7 +313,7 @@ export default function ReportsAndAudit({ summary = { total_expense: 1561000 } }
                                 Rekapitulasi Tepat Waktu, Terlambat, dan Absen Bulanan
                             </p>
                         </div>
-                        <div className="flex gap-4">
+                        <div className="flex flex-wrap gap-2 sm:gap-4">
                             <div className="flex items-center gap-1 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200/50">
                                 <div className="w-3 h-3 rounded-full bg-emerald-600"></div>
                                 <span className="text-xs font-semibold text-emerald-700">
@@ -421,7 +384,7 @@ export default function ReportsAndAudit({ summary = { total_expense: 1561000 } }
                                 Total Pendapatan
                             </span>
                             <h2 className="text-3xl font-bold text-[#2d4739] mt-1">
-                                Rp 42.5M
+                                Rp {Number(summary.total_income || 0).toLocaleString("id-ID")}
                             </h2>
                         </div>
                         <div className="mt-4 flex items-center text-xs font-bold text-[#2d4739]">
@@ -444,7 +407,7 @@ export default function ReportsAndAudit({ summary = { total_expense: 1561000 } }
                             </span>
                             {/* Nilai sudah dinamis dan otomatis diformat */}
                             <h2 className="text-3xl font-bold text-[#e57373] mt-1">
-                                {formatRupiah(totalExpense)}
+                                Rp {Number(totalExpense || 0).toLocaleString("id-ID")}
                             </h2>
                         </div>
                         <div className="mt-4 flex items-center text-xs font-bold text-[#e57373]">
@@ -466,7 +429,7 @@ export default function ReportsAndAudit({ summary = { total_expense: 1561000 } }
                                 Total Item Terjual
                             </span>
                             <h2 className="text-3xl font-bold text-[#121c28] mt-1">
-                                1,245
+                                {(summary.items_sold || 0).toLocaleString("id-ID")}
                             </h2>
                         </div>
                         <div className="mt-4 flex items-center text-xs font-bold text-[#2d4739]">
@@ -488,7 +451,7 @@ export default function ReportsAndAudit({ summary = { total_expense: 1561000 } }
                                 Total Transaksi
                             </span>
                             <h2 className="text-3xl font-bold text-[#121c28] mt-1">
-                                850
+                                {(summary.transactions || 0).toLocaleString("id-ID")}
                             </h2>
                         </div>
                         <div className="mt-4 flex items-center text-xs font-bold text-[#2d4739]">
@@ -507,7 +470,7 @@ export default function ReportsAndAudit({ summary = { total_expense: 1561000 } }
                             Penjualan Harian
                         </h3>
                         <p className="text-xs text-[#424844]">
-                            Rincian performa harian untuk periode terpilih.
+                            Transaksi yang masuk hari ini. Riwayat lengkap tersedia di laporan bulanan.
                         </p>
                     </div>
                     <div className="overflow-x-auto">
@@ -532,28 +495,26 @@ export default function ReportsAndAudit({ summary = { total_expense: 1561000 } }
                                 </tr>
                             </thead>
                             <tbody className="text-sm divide-y divide-[#d9e3f4]">
-                                <tr className="hover:bg-gray-50 transition-colors">
-                                    <td className="p-4 font-medium">
-                                        03 Sep 2026
-                                    </td>
-                                    <td className="p-4 text-center">42 menu</td>
-                                    <td className="p-4 text-right font-bold text-[#173124]">
-                                        Rp 1.450.000
-                                    </td>
-                                    <td className="p-4">
-                                        <div className="flex items-center gap-1">
-                                            <span className="material-symbols-outlined text-[#fe932c] text-sm">
-                                                star
-                                            </span>
-                                            <span className="text-xs font-semibold">
-                                                Mie Ghacor Original
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td className="p-4 text-xs text-[#424844]">
-                                        15x Mie Ghacor Lv 1, 10x Mie Ghacor Lv 3, 17x Es Teh Manis
-                                    </td>
-                                </tr>
+                                {dailySales.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="5" className="p-8 text-center text-[#424844]">
+                                            Belum ada transaksi pembelian hari ini.
+                                        </td>
+                                    </tr>
+                                ) : dailySales.map((day) => (
+                                    <tr key={day.date} className="hover:bg-gray-50 transition-colors">
+                                        <td className="p-4 font-medium">{new Date(`${day.date}T00:00:00`).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}</td>
+                                        <td className="p-4 text-center">{day.items_sold} menu</td>
+                                        <td className="p-4 text-right font-bold text-[#173124]">Rp {Number(day.revenue).toLocaleString("id-ID")}</td>
+                                        <td className="p-4">
+                                            <div className="flex items-center gap-1">
+                                                <span className="material-symbols-outlined text-[#fe932c] text-sm">star</span>
+                                                <span className="text-xs font-semibold">{day.top_item}</span>
+                                            </div>
+                                        </td>
+                                        <td className="p-4 text-xs text-[#424844]">{day.details || "-"}</td>
+                                    </tr>
+                                ))}
                             </tbody>
                         </table>
                     </div>

@@ -1,10 +1,26 @@
-<<<<<<< HEAD
 import React from 'react';
+import { useForm } from '@inertiajs/react';
 
 export default function Login() {
+  const { data, setData, post, processing, errors, reset } = useForm({
+    email: '',
+    password: '',
+    role: 'kasir',
+  });
+
+  const submit = (event) => {
+    event.preventDefault();
+
+    post('/login', {
+      onFinish: () => reset('password'),
+    });
+  };
+
   return (
-    <div className="bg-background min-h-screen flex items-center justify-center p-md text-on-surface">
-      <div className="w-full max-w-md bg-surface-container-lowest rounded-xl shadow-lg p-xl">
+    <div className="bg-background min-h-screen flex items-center justify-center p-md text-on-surface relative overflow-hidden">
+      <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full bg-[#d6ae5c]/10 blur-3xl" />
+      <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-primary/10 blur-3xl" />
+      <div className="relative w-full max-w-md premium-card p-8 sm:p-10">
         {/* Brand Header */}
         <div className="flex flex-col items-center mb-xl">
           <span 
@@ -13,32 +29,16 @@ export default function Login() {
           >
             coffee
           </span>
-          <h1 className="font-headline-md text-headline-md text-primary font-bold">
-            Mie Gachor
+          <h1 className="font-serif text-3xl text-primary font-bold">
+            Kanakana
           </h1>
           <p className="font-body-md text-body-md text-on-surface-variant mt-xs">
-            Login to access operations.
+            Portal operasional kantin santri
           </p>
         </div>
-=======
-import Checkbox from '@/Components/Checkbox';
-import InputError from '@/Components/InputError';
-import InputLabel from '@/Components/InputLabel';
-import PrimaryButton from '@/Components/PrimaryButton';
-import TextInput from '@/Components/TextInput';
-import GuestLayout from '@/Layouts/GuestLayout';
-import { Head, useForm } from '@inertiajs/react';
-
-export default function Login({ status }) {
-    const { data, setData, post, processing, errors, reset } = useForm({
-        email: '',
-        password: '',
-        remember: false,
-    });
->>>>>>> 6a1c58e (Kanakana - jadikan utama, hapus Mie Gachor)
 
         {/* Login Form */}
-        <form className="space-y-lg">
+        <form className="space-y-lg" onSubmit={submit}>
           {/* Username/Email Field */}
           <div className="space-y-xs">
             <label className="block font-label-bold text-label-bold text-on-surface" htmlFor="username">
@@ -50,12 +50,17 @@ export default function Login({ status }) {
               </div>
               <input 
                 className="block w-full pl-xl pr-sm py-sm bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface focus:ring-2 focus:ring-primary focus:border-primary transition-colors h-pos-touch-target" 
-                id="username" 
-                name="username" 
+                id="email"
+                name="email"
+                value={data.email}
+                onChange={(event) => setData('email', event.target.value)}
+                autoComplete="username"
+                required
                 placeholder="Enter your username or email" 
                 type="text"
               />
             </div>
+            {errors.email && <p className="mt-xs text-sm text-red-600">{errors.email}</p>}
           </div>
 
           {/* Password Field */}
@@ -72,11 +77,16 @@ export default function Login({ status }) {
               <input 
                 className="block w-full pl-xl pr-sm py-sm bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface focus:ring-2 focus:ring-primary focus:border-primary transition-colors h-pos-touch-target" 
                 id="password" 
-                name="password" 
+                name="password"
+                value={data.password}
+                onChange={(event) => setData('password', event.target.value)}
+                autoComplete="current-password"
+                required
                 placeholder="Enter your password" 
                 type="password"
               />
             </div>
+            {errors.password && <p className="mt-xs text-sm text-red-600">{errors.password}</p>}
           </div>
 
           {/* Role Selector */}
@@ -92,9 +102,10 @@ export default function Login({ status }) {
                 className="block w-full pl-xl pr-lg py-sm bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface focus:ring-2 focus:ring-primary focus:border-primary transition-colors appearance-none h-pos-touch-target" 
                 id="role" 
                 name="role"
-                defaultValue="cashier"
+                value={data.role}
+                onChange={(event) => setData('role', event.target.value)}
               >
-                <option value="cashier">Cashier</option>
+                <option value="kasir">Cashier</option>
                 <option value="admin">Admin</option>
               </select>
               <div className="absolute inset-y-0 right-0 flex items-center px-sm pointer-events-none text-on-surface-variant">
@@ -103,11 +114,11 @@ export default function Login({ status }) {
             </div>
           </div>
 
-<<<<<<< HEAD
           {/* Submit Button */}
           <button 
             className="w-full flex items-center justify-center bg-primary text-on-primary font-headline-sm text-headline-sm rounded-lg h-pos-touch-target mt-xl transition-colors active:bg-on-primary-fixed-variant" 
             type="submit"
+            disabled={processing}
           >
             <span>Masuk</span>
             <span className="material-symbols-outlined ml-sm">arrow_forward</span>
@@ -117,69 +128,3 @@ export default function Login({ status }) {
     </div>
   );
 }
-=======
-            {status && (
-                <div className="mb-4 text-sm font-medium text-green-600">
-                    {status}
-                </div>
-            )}
-
-            <form onSubmit={submit}>
-                <div>
-                    <InputLabel htmlFor="email" value="Email" />
-
-                    <TextInput
-                        id="email"
-                        type="email"
-                        name="email"
-                        value={data.email}
-                        className="mt-1 block w-full"
-                        autoComplete="username"
-                        isFocused={true}
-                        onChange={(e) => setData('email', e.target.value)}
-                    />
-
-                    <InputError message={errors.email} className="mt-2" />
-                </div>
-
-                <div className="mt-4">
-                    <InputLabel htmlFor="password" value="Password" />
-
-                    <TextInput
-                        id="password"
-                        type="password"
-                        name="password"
-                        value={data.password}
-                        className="mt-1 block w-full"
-                        autoComplete="current-password"
-                        onChange={(e) => setData('password', e.target.value)}
-                    />
-
-                    <InputError message={errors.password} className="mt-2" />
-                </div>
-
-                <div className="mt-4 block">
-                    <label className="flex items-center">
-                        <Checkbox
-                            name="remember"
-                            checked={data.remember}
-                            onChange={(e) =>
-                                setData('remember', e.target.checked)
-                            }
-                        />
-                        <span className="ms-2 text-sm text-gray-600">
-                            Remember me
-                        </span>
-                    </label>
-                </div>
-
-                <div className="mt-4 flex items-center justify-end">
-                    <PrimaryButton className="ms-4" disabled={processing}>
-                        Log in
-                    </PrimaryButton>
-                </div>
-            </form>
-        </GuestLayout>
-    );
-}
->>>>>>> 6a1c58e (Kanakana - jadikan utama, hapus Mie Gachor)

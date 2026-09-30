@@ -1,10 +1,40 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
 export default function Profile() {
+    const { auth, flash } = usePage().props;
+    const user = auth.user;
+    const [photoPreview, setPhotoPreview] = useState(null);
+    const { data, setData, post, processing, errors, recentlySuccessful } = useForm({
+        profile_photo: null,
+    });
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const [showEndShiftConfirm, setShowEndShiftConfirm] = useState(false);
+    const [showDeletePhotoConfirm, setShowDeletePhotoConfirm] = useState(false);
+
+    const profilePhotoUrl = user.profile_photo_path
+        ? `/storage/${user.profile_photo_path}`
+        : null;
+
+    const handlePhotoChange = (event) => {
+        const file = event.target.files?.[0];
+
+        if (!file) {
+            return;
+        }
+
+        setData('profile_photo', file);
+        setPhotoPreview(URL.createObjectURL(file));
+    };
+
+    const submitPhoto = (event) => {
+        event.preventDefault();
+        post(route('profile.photo.update'), {
+            forceFormData: true,
+            onSuccess: () => setPhotoPreview(null),
+        });
+    };
 
     const handleEndShift = () => {
         setShowEndShiftConfirm(true);
@@ -21,7 +51,12 @@ export default function Profile() {
 
     const confirmLogout = () => {
         setShowLogoutConfirm(false);
-        alert('Sesi kasir berhasil diakhiri. Mengalihkan ke layar login PIN...');
+        router.post(route('logout'));
+    };
+
+    const confirmDeletePhoto = () => {
+        setShowDeletePhotoConfirm(false);
+        router.delete(route('profile.photo.delete'));
     };
 
     return (
@@ -29,42 +64,71 @@ export default function Profile() {
             <Head title="Profile" />
             
             <AuthenticatedLayout
-                header={
-                    <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-primary-container flex items-center justify-center">
-                            <span className="material-symbols-outlined text-primary-fixed text-[20px]">
-                                local_cafe
-                            </span>
-                        </div>
-                        <div className="flex flex-col">
-                            <span className="font-label-sm text-label-sm text-on-surface-variant leading-none">
-                                BrewMaster Pro
-                            </span>
-                            <span className="font-headline-sm text-headline-sm text-on-surface tracking-tight leading-tight">
-                                Profile
-                            </span>
-                        </div>
-                    </div>
-                }
             >
                 <div className="flex flex-col w-full px-md gap-md py-4 bg-surface min-h-screen">
                     {/* Profile Header Card */}
                     <div className="w-full bg-surface-container-lowest rounded-xl p-md shadow-sm flex flex-col gap-md">
                         <div className="flex items-center gap-md">
                             <div className="relative w-16 h-16 rounded-full overflow-hidden shrink-0 bg-surface-container">
-                                <img 
-                                    className="w-full h-full object-cover" 
-                                    alt="Profile" 
-                                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuDt8BVuipU9zGDCaOleLud9pFFavbY87qB0DXFuCtdVv1jSdu-5WSKRIyU3zoSKoV1bOtxucVCq2c1Xt9Zw4j_D3LLAteNb-a71EAQUcOkUIbQUsATVIUrgtt4lN62H6IG_jGDzKwgoDDYsRephhudbQcTi1sXCqJbGFhbzoLSN3yYAfhql14201rG1jKW-veOGEh1t7-gX6IZM0dVgG_rB3hSkOXp6YlAfK7REOxM_olS_1_2AM0Ul"
-                                />
+                                {photoPreview || profilePhotoUrl ? (
+                                    <img
+                                        className="w-full h-full object-cover"
+                                        alt={`Foto profil ${user.name}`}
+                                        src={photoPreview || profilePhotoUrl}
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-primary text-2xl font-bold">
+                                        {user.name?.charAt(0).toUpperCase()}
+                                    </div>
+                                )}
                                 <div className="absolute bottom-0 right-0 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
                                     <span className="w-2 h-2 rounded-full bg-primary-fixed"></span>
                                 </div>
                             </div>
+                            <form onSubmit={submitPhoto} className="flex flex-col gap-2">
+                                    <label className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-primary text-on-primary text-sm font-medium cursor-pointer hover:opacity-90">
+                                        <span className="material-symbols-outlined text-[18px]">photo_camera</span>
+                                        Ganti Foto
+                                        <input
+                                            type="file"
+                                            accept="image/jpeg,image/png,image/webp"
+                                            onChange={handlePhotoChange}
+                                            className="hidden"
+                                        />
+                                    </label>
+                                    {data.profile_photo && (
+                                        <button
+                                            type="submit"
+                                            disabled={processing}
+                                            className="text-xs text-primary underline disabled:opacity-50"
+                                        >
+                                            {processing ? 'Mengunggah...' : 'Simpan Foto'}
+                                        </button>
+                                    )}
+                                    {!photoPreview && profilePhotoUrl && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowDeletePhotoConfirm(true)}
+                                            disabled={processing}
+                                            className="text-xs text-red-600 underline disabled:opacity-50"
+                                        >
+                                            Hapus Foto
+                                        </button>
+                                    )}
+                                    {errors.profile_photo && (
+                                        <p className="text-xs text-red-600">{errors.profile_photo}</p>
+                                    )}
+                                    {(flash?.status === 'profile-photo-updated' || recentlySuccessful) && (
+                                        <p className="text-xs text-green-600">Foto berhasil diperbarui.</p>
+                                    )}
+                                    {flash?.status === 'profile-photo-deleted' && (
+                                        <p className="text-xs text-green-600">Foto profil berhasil dihapus.</p>
+                                    )}
+                            </form>
                             <div className="flex flex-col min-w-0 flex-1">
                                 <div className="flex items-center gap-xs">
                                     <h2 className="font-headline-sm text-headline-sm text-on-surface truncate">
-                                        Sarah Wijaya
+                                        {user.name}
                                     </h2>
                                     <span 
                                         className="material-symbols-outlined text-primary text-[18px]"
@@ -111,7 +175,7 @@ export default function Profile() {
                                 Realtime POS
                             </span>
                         </div>
-                        <div className="grid grid-cols-2 gap-sm">
+                        <div className="grid grid-cols-1 gap-sm sm:grid-cols-2">
                             {/* Penjualan */}
                             <div className="col-span-2 bg-primary-container text-on-primary rounded-xl p-md shadow-sm flex items-center justify-between">
                                 <div className="flex flex-col">
@@ -203,7 +267,7 @@ export default function Profile() {
                                 </div>
                             </button>
 
-                            <div className="grid grid-cols-2 gap-sm">
+                            <div className="grid grid-cols-1 gap-sm sm:grid-cols-2">
                                 {/* Riwayat Transaksi */}
                                 <button className="w-full bg-surface-container-lowest rounded-xl p-md flex flex-col gap-xs items-start shadow-sm active:bg-surface-container-low transition-colors text-left">
                                     <div className="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-primary">
@@ -385,7 +449,6 @@ export default function Profile() {
                             Keluar dari Sesi Kasir
                         </button>
                         <span className="font-label-sm text-label-sm text-on-surface-variant">
-                            BrewMaster Pro v2.4.1 (Build #8410)
                         </span>
                     </div>
                 </div>
@@ -454,6 +517,40 @@ export default function Profile() {
                                     className="bg-red-600 text-white px-6 py-2 rounded-xl font-medium shadow-sm shadow-red-200 transition-all"
                                 >
                                     Logout
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {showDeletePhotoConfirm && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                        <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+                            <div className="mb-6 flex items-start gap-4">
+                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-error-container">
+                                    <span className="material-symbols-outlined text-error">delete</span>
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-semibold text-gray-900">Hapus Foto Profil?</h3>
+                                    <p className="mt-1 text-sm text-gray-500">
+                                        Foto profil akan dihapus dan avatar akan kembali menggunakan inisial nama.
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex justify-end gap-3 pt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowDeletePhotoConfirm(false)}
+                                    className="rounded-xl px-4 py-2 text-sm font-medium text-gray-700 transition-all hover:bg-gray-100"
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={confirmDeletePhoto}
+                                    className="rounded-xl bg-red-600 px-6 py-2 font-medium text-white shadow-sm shadow-red-200 transition-all"
+                                >
+                                    Hapus Foto
                                 </button>
                             </div>
                         </div>

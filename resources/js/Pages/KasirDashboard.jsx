@@ -195,7 +195,7 @@ export default function KasirDashboard() {
               <button className="text-primary hover:bg-primary-container/10 transition-colors p-sm rounded-full flex items-center justify-center cursor-pointer">
                 <span className="material-symbols-outlined">storefront</span>
               </button>
-              <h1 className="text-headline-md font-bold text-primary">Mie Ghacor</h1>
+              <h1 className="text-headline-md font-bold text-primary">Kanakana</h1>
             </div>
 
             {/* Admin Menu - hanya muncul jika isAdmin true */}

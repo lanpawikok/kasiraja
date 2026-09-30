@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import { QRCodeSVG } from 'qrcode.react';
+import PageSidebar from '@/Components/PageSidebar';
 
 export default function Attendance({ auth, attendances = [], stats }) {
     const todayCount = stats?.todayCount ?? attendances.length;
@@ -9,12 +10,18 @@ export default function Attendance({ auth, attendances = [], stats }) {
     const lateCount = stats?.lateCount ?? 0;
     const onTimeCount = stats?.onTimeCount ?? 0;
 
-    const PC_IP_ADDRESS = "192.168.110.185:8000";
-    const scanUrl = `http://${PC_IP_ADDRESS}/attendance/scan`;
+    const scanUrl = `${window.location.protocol}//${window.location.host}/attendance/scan`;
 
     // State Modal Konfirmasi Hapus
     const [selectedDeleteId, setSelectedDeleteId] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [reportPeriod, setReportPeriod] = useState('day');
+    const [reportDate, setReportDate] = useState(new Date().toISOString().slice(0, 10));
+    const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
+
+    const exportUrl = reportPeriod === 'day'
+        ? `${route('attendance.export')}?period=day&date=${reportDate}`
+        : `${route('attendance.export')}?period=month&month=${reportMonth}`;
 
     // Polling data
     useEffect(() => {
@@ -57,13 +64,14 @@ export default function Attendance({ auth, attendances = [], stats }) {
         <>
             <Head title="Staff Attendance - BrewMaster Pro" />
 
-            <div className="bg-background font-body-md text-on-surface flex flex-col min-h-screen overflow-hidden h-screen">
+            <div className="min-h-screen bg-background font-body-md text-on-surface lg:pl-72">
+                <PageSidebar />
                 {/* Header Navbar */}
-                <header className="fixed top-0 inset-x-0 z-50 bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] pt-safe">
+                <header className="hidden fixed top-0 inset-x-0 z-50 bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] pt-safe">
                     <div className="h-16 px-md flex items-center justify-between">
                         <div className="flex items-center gap-sm">
                             <span className="material-symbols-outlined text-primary">coffee_maker</span>
-                            <h1 className="font-headline-sm text-headline-sm text-primary">Mie Ghacor</h1>
+                            <h1 className="font-headline-sm text-headline-sm text-primary">Kanakana</h1>
                         </div>
                         <div className="hidden md:flex gap-md">
                             <nav className="flex gap-sm">
@@ -94,11 +102,11 @@ export default function Attendance({ auth, attendances = [], stats }) {
                 </header>
 
                 {/* Main Content */}
-                <main className="flex-1 pt-20 pb-32 bg-background overflow-y-auto min-h-0">
-                    <div className="flex flex-col w-full max-w-4xl mx-auto px-4 gap-6">
+                <main className="min-h-screen bg-background px-4 pb-24 pt-20 sm:px-6 sm:pt-20 lg:px-8 lg:py-6">
+                    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
 
                         {/* Summary Cards */}
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
                             <div className="bg-primary-container p-4 rounded-xl shadow-md flex flex-col gap-2 relative overflow-hidden">
                                 <span className="font-label-sm text-label-sm text-on-primary-container">Today's Presence</span>
                                 <div className="flex items-baseline gap-1">
@@ -137,6 +145,57 @@ export default function Attendance({ auth, attendances = [], stats }) {
                             </div>
 
                             <p className="font-body-md text-body-md text-on-surface-variant text-center">Arahkan Google Lens HP ke QR Code di atas (Batas Waktu Jam 10:00 WIB)</p>
+                        </div>
+
+                        <div className="bg-surface-container-lowest p-6 rounded-xl shadow-sm border border-outline-variant/30">
+                            <div className="flex flex-col gap-1 mb-4">
+                                <div className="flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-primary">download</span>
+                                    <h3 className="font-headline-sm text-headline-sm text-on-surface">Export Laporan Absensi</h3>
+                                </div>
+                                <p className="text-sm text-on-surface-variant">Unduh rekap kehadiran berdasarkan hari atau bulan.</p>
+                            </div>
+                            <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-end">
+                                <label className="flex flex-col gap-1 text-xs font-semibold text-on-surface-variant">
+                                    Periode
+                                    <select
+                                        value={reportPeriod}
+                                        onChange={(event) => setReportPeriod(event.target.value)}
+                                        className="h-11 min-w-36 rounded-xl border border-outline-variant bg-white px-3 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
+                                    >
+                                        <option value="day">Per Hari</option>
+                                        <option value="month">Per Bulan</option>
+                                    </select>
+                                </label>
+                                {reportPeriod === 'day' ? (
+                                    <label className="flex flex-col gap-1 text-xs font-semibold text-on-surface-variant">
+                                        Tanggal
+                                        <input
+                                            type="date"
+                                            value={reportDate}
+                                            onChange={(event) => setReportDate(event.target.value)}
+                                            className="h-11 rounded-xl border border-outline-variant bg-white px-3 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
+                                        />
+                                    </label>
+                                ) : (
+                                    <label className="flex flex-col gap-1 text-xs font-semibold text-on-surface-variant">
+                                        Bulan
+                                        <input
+                                            type="month"
+                                            value={reportMonth}
+                                            onChange={(event) => setReportMonth(event.target.value)}
+                                            className="h-11 rounded-xl border border-outline-variant bg-white px-3 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
+                                        />
+                                    </label>
+                                )}
+                                <a
+                                    href={exportUrl}
+                                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-on-primary shadow-sm transition hover:bg-primary/90"
+                                >
+                                    <span className="material-symbols-outlined text-[19px]">download</span>
+                                    Export CSV
+                                </a>
+                            </div>
                         </div>
 
                         {/* Staff Attendance List */}

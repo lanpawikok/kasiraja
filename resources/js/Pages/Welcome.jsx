@@ -31,15 +31,17 @@ export default function Welcome() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-      <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-slate-100">
+    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full bg-[#d6ae5c]/10 blur-3xl" />
+      <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-[#173f2d]/10 blur-3xl" />
+      <div className="relative bg-white/95 p-8 sm:p-10 rounded-3xl shadow-[0_20px_60px_rgba(16,41,31,0.12)] w-full max-w-md border border-white">
         {/* Header / Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 bg-emerald-100 text-emerald-800 rounded-2xl mb-4 shadow-inner">
             <span className="material-symbols-outlined text-3xl">local_cafe</span>
           </div>
-          <h1 className="text-2xl font-bold text-slate-800">Mie Gachor </h1>
-          <p className="text-slate-500 text-sm mt-1">Login to access operations.</p>
+          <h1 className="font-serif text-3xl font-bold text-[#173f2d]">Kanakana</h1>
+          <p className="text-slate-500 text-sm mt-1">Portal operasional kantin santri</p>
         </div>
 
         {/* Form Login */}
