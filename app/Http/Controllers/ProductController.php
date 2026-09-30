@@ -16,6 +16,8 @@ class ProductController extends Controller
             'price' => 'required|numeric|min:0',
             'stock' => 'required|integer|min:0',
             'category' => 'required|string|max:255',
+            'size' => 'nullable|string|max:100',
+            'variant' => 'nullable|string|max:100',
             'icon' => 'required|string|max:100',
             'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
@@ -43,6 +45,8 @@ class ProductController extends Controller
             'price' => 'required|numeric|min:0',
             'stock' => 'required|integer|min:0',
             'category' => 'required|string|max:255',
+            'size' => 'nullable|string|max:100',
+            'variant' => 'nullable|string|max:100',
             'icon' => 'required|string|max:100',
             'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
@@ -60,5 +64,16 @@ class ProductController extends Controller
         $product->update($validated);
 
         return redirect()->back()->with('success', 'Produk berhasil diperbarui.');
+    }
+
+    public function destroy(Product $product)
+    {
+        if ($product->image && !str_starts_with($product->image, 'http')) {
+            Storage::disk('public')->delete($product->image);
+        }
+
+        $product->delete();
+
+        return redirect()->back()->with('success', 'Produk berhasil dihapus.');
     }
 }

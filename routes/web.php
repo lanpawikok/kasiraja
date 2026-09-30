@@ -67,6 +67,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
                         'name' => $product->name,
                         'price' => (float) $product->price,
                         'category' => $product->category,
+                        'size' => $product->size,
+                        'variant' => $product->variant,
                         'stock' => $product->stock,
                         'icon' => $product->icon,
                         'image' => $product->image
@@ -92,6 +94,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('role:admin')->group(function () {
         Route::post('/products', [ProductController::class, 'store'])->name('products.store');
         Route::put('/products/{product}', [ProductController::class, 'update'])->name('products.update');
+        Route::delete('/products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
         Route::get('/manage-inventory', [InventoryController::class, 'index'])->name('manage-inventory');
         Route::post('/manage-inventory', [InventoryController::class, 'store'])->name('inventory.store');
         Route::put('/manage-inventory/{inventory}', [InventoryController::class, 'update'])->name('inventory.update');

@@ -31,6 +31,13 @@ export default function Dashboard({ catalogProducts = [] }) {
   const [cart, setCart] = useState([]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('Semua');
+  const baseCategories = ['Kopi', 'Non-Kopi', 'Makanan', 'Pastry'];
+  const baseSizes = ['Kecil', 'Sedang', 'Besar', 'Regular', 'Large'];
+  const baseVariants = ['Original', 'Vanilla', 'Cokelat', 'Matcha', 'Strawberry', 'Caramel', 'Hazelnut'];
+  const categoryOptions = Array.from(new Set([...baseCategories, ...products.map((p) => p.category).filter(Boolean)]));
+  const sizeOptions = Array.from(new Set([...baseSizes, ...products.map((p) => p.size).filter(Boolean)]));
+  const variantOptions = Array.from(new Set([...baseVariants, ...products.map((p) => p.variant).filter(Boolean)]));
+  const filterOptions = ['Semua', ...categoryOptions];
 
   // State untuk Fitur Catatan & Pelanggan/Meja
   const [orderNote, setOrderNote] = useState('');
@@ -57,12 +64,16 @@ export default function Dashboard({ catalogProducts = [] }) {
   const [editProductForm, setEditProductForm] = useState({});
   const [editProductImage, setEditProductImage] = useState(null);
   const [editProductProcessing, setEditProductProcessing] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [deleteProductProcessing, setDeleteProductProcessing] = useState(false);
 
   // Form State untuk Tambah Menu Baru
   const [newMenu, setNewMenu] = useState({
     name: '',
     price: '',
     category: 'Kopi',
+    size: '',
+    variant: '',
     stock: '',
     icon: 'local_cafe'
   });
@@ -119,6 +130,8 @@ export default function Dashboard({ catalogProducts = [] }) {
       price: product.price,
       stock: product.stock,
       category: product.category,
+      size: product.size || '',
+      variant: product.variant || '',
       icon: product.icon || 'restaurant',
     });
     setEditProductImage(null);
@@ -148,6 +161,22 @@ export default function Dashboard({ catalogProducts = [] }) {
     });
   };
 
+  const handleProductDelete = () => {
+    if (!editingProduct) return;
+    setDeleteProductProcessing(true);
+    router.delete(route('products.destroy', editingProduct.id), {
+      preserveScroll: true,
+      onSuccess: () => {
+        setIsDeleteConfirmOpen(false);
+        setEditingProduct(null);
+        showToast('Produk berhasil dihapus.');
+        router.reload({ only: ['catalogProducts'] });
+      },
+      onError: () => showToast('Produk gagal dihapus.', 'error'),
+      onFinish: () => setDeleteProductProcessing(false),
+    });
+  };
+
   const [newMenuProcessing, setNewMenuProcessing] = useState(false);
   const [newMenuImage, setNewMenuImage] = useState(null);
 
@@ -162,6 +191,8 @@ export default function Dashboard({ catalogProducts = [] }) {
       name: newMenu.name,
       price: newMenu.price,
       category: newMenu.category,
+      size: newMenu.size || '',
+      variant: newMenu.variant || '',
       stock: newMenu.stock,
       icon: newMenu.icon || 'local_cafe',
     };
@@ -171,7 +202,7 @@ export default function Dashboard({ catalogProducts = [] }) {
       preserveScroll: true,
       onSuccess: () => {
         setIsAddMenuOpen(false);
-        setNewMenu({ name: '', price: '', category: 'Kopi', stock: '', icon: 'local_cafe' });
+        setNewMenu({ name: '', price: '', category: 'Kopi', size: '', variant: '', stock: '', icon: 'local_cafe' });
         setNewMenuImage(null);
         showToast('Menu berhasil ditambahkan dan tersimpan di database.');
         router.reload({ only: ['catalogProducts'] });
@@ -433,7 +464,7 @@ export default function Dashboard({ catalogProducts = [] }) {
                 />
               </div>
               <div className="mt-2 flex gap-sm overflow-x-auto py-1 no-scrollbar">
-                {['Semua', 'Kopi', 'Non-Kopi', 'Makanan', 'Pastry'].map((cat) => (
+                {filterOptions.map((cat) => (
                   <button
                     key={cat}
                     onClick={() => setSelectedCategory(cat)}
@@ -505,6 +536,12 @@ export default function Dashboard({ catalogProducts = [] }) {
                           Stok: {product.stock}
                         </span>
                       </div>
+                      {(product.size || product.variant) && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {product.size && <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-sky-50 text-sky-700 rounded-full border border-sky-100">{product.size}</span>}
+                          {product.variant && <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded-full border border-amber-100">{product.variant}</span>}
+                        </div>
+                      )}
                       <p className="font-pos-price text-pos-price text-primary mt-1">
                         {(product.price / 1000).toFixed(0)}k
                       </p>
@@ -876,16 +913,17 @@ export default function Dashboard({ catalogProducts = [] }) {
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-1">Kategori</label>
-                      <select
+                      <input
+                        list="category-options"
                         value={newMenu.category}
                         onChange={(e) => setNewMenu({ ...newMenu, category: e.target.value })}
+                        placeholder="Ketik kategori baru, mis: Kopi Leguran Sedang"
                         className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                      >
-                        <option value="Kopi">Kopi</option>
-                        <option value="Non-Kopi">Non-Kopi</option>
-                        <option value="Makanan">Makanan</option>
-                        <option value="Pastry">Pastry</option>
-                      </select>
+                      />
+                      <datalist id="category-options">
+                        {categoryOptions.map((c) => <option key={c} value={c} />)}
+                      </datalist>
+                      <span className="mt-1 block text-[11px] text-slate-400">Ketik bebas kategori baru.</span>
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-1">Ikon Tampilan</label>
@@ -899,6 +937,35 @@ export default function Dashboard({ catalogProducts = [] }) {
                         <option value="restaurant">Makanan</option>
                         <option value="icecream">Es Krim / Dessert</option>
                       </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">Ukuran</label>
+                      <input
+                        list="size-options"
+                        value={newMenu.size}
+                        onChange={(e) => setNewMenu({ ...newMenu, size: e.target.value })}
+                        placeholder="Kecil / Sedang / Besar"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                      <datalist id="size-options">
+                        {sizeOptions.map((c) => <option key={c} value={c} />)}
+                      </datalist>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">Varian Rasa</label>
+                      <input
+                        list="variant-options"
+                        value={newMenu.variant}
+                        onChange={(e) => setNewMenu({ ...newMenu, variant: e.target.value })}
+                        placeholder="Original / Vanilla / Cokelat"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                      <datalist id="variant-options">
+                        {variantOptions.map((c) => <option key={c} value={c} />)}
+                      </datalist>
                     </div>
                   </div>
 
@@ -964,7 +1031,7 @@ export default function Dashboard({ catalogProducts = [] }) {
                     <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#b38735]">Katalog Produk</p>
                     <h2 className="text-xl font-bold text-[#173f2d]">Edit Produk</h2>
                   </div>
-                  <button type="button" onClick={() => setEditingProduct(null)} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100">
+                  <button type="button" onClick={() => { setEditingProduct(null); setIsDeleteConfirmOpen(false); }} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100">
                     <span className="material-symbols-outlined">close</span>
                   </button>
                 </div>
@@ -981,25 +1048,65 @@ export default function Dashboard({ catalogProducts = [] }) {
                     </label>
                   </div>
                   <label className="block text-xs font-semibold text-slate-600">Kategori
-                    <select value={editProductForm.category || ''} onChange={(event) => setEditProductForm({ ...editProductForm, category: event.target.value })} className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-sm text-slate-800">
-                      <option>Kopi</option>
-                      <option>Non-Kopi</option>
-                      <option>Makanan</option>
-                      <option>Pastry</option>
-                    </select>
+                    <input list="category-options-edit" value={editProductForm.category || ''} onChange={(event) => setEditProductForm({ ...editProductForm, category: event.target.value })} placeholder="Ketik kategori baru" className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-sm text-slate-800" />
+                    <datalist id="category-options-edit">
+                      {categoryOptions.map((c) => <option key={c} value={c} />)}
+                    </datalist>
                   </label>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <label className="block text-xs font-semibold text-slate-600">Ukuran
+                      <input list="size-options-edit" value={editProductForm.size || ''} onChange={(event) => setEditProductForm({ ...editProductForm, size: event.target.value })} placeholder="Kecil / Sedang / Besar" className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-sm text-slate-800" />
+                      <datalist id="size-options-edit">
+                        {sizeOptions.map((c) => <option key={c} value={c} />)}
+                      </datalist>
+                    </label>
+                    <label className="block text-xs font-semibold text-slate-600">Varian Rasa
+                      <input list="variant-options-edit" value={editProductForm.variant || ''} onChange={(event) => setEditProductForm({ ...editProductForm, variant: event.target.value })} placeholder="Original / Vanilla / Cokelat" className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-sm text-slate-800" />
+                      <datalist id="variant-options-edit">
+                        {variantOptions.map((c) => <option key={c} value={c} />)}
+                      </datalist>
+                    </label>
+                  </div>
                   <label className="block text-xs font-semibold text-slate-600">Foto Produk
                     <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setEditProductImage(event.target.files?.[0] || null)} className="mt-1 block w-full rounded-xl border border-slate-200 p-2 text-sm text-slate-800 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-emerald-700" />
                     <span className="mt-1 block text-[11px] text-slate-400">JPG, PNG, atau WebP maksimal 2 MB.</span>
                   </label>
                 </div>
-                <div className="mt-6 flex justify-end gap-2">
-                  <button type="button" onClick={() => setEditingProduct(null)} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">Batal</button>
-                  <button type="submit" disabled={editProductProcessing} className="rounded-xl bg-primary px-5 py-2 text-sm font-bold text-on-primary disabled:opacity-50">
-                    {editProductProcessing ? 'Menyimpan...' : 'Simpan Perubahan'}
+                <div className="mt-6 flex items-center justify-between gap-2 border-t border-slate-100 pt-4">
+                  <button type="button" onClick={() => setIsDeleteConfirmOpen(true)} disabled={deleteProductProcessing || editProductProcessing} className="inline-flex items-center gap-1.5 rounded-xl bg-red-50 px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-100 disabled:opacity-50">
+                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                    Hapus Produk
                   </button>
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => setEditingProduct(null)} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">Batal</button>
+                    <button type="submit" disabled={editProductProcessing || deleteProductProcessing} className="rounded-xl bg-primary px-5 py-2 text-sm font-bold text-on-primary disabled:opacity-50">
+                      {editProductProcessing ? 'Menyimpan...' : 'Simpan Perubahan'}
+                    </button>
+                  </div>
                 </div>
               </form>
+            </div>
+          )}
+
+          {isDeleteConfirmOpen && editingProduct && (
+            <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+              <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+                <div className="flex items-center gap-3 text-red-600">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
+                    <span className="material-symbols-outlined">warning</span>
+                  </span>
+                  <h3 className="text-base font-bold text-slate-900">Hapus Produk?</h3>
+                </div>
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  Produk <span className="font-bold text-slate-900">"{editingProduct.name}"</span> akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
+                </p>
+                <div className="mt-6 flex justify-end gap-2">
+                  <button type="button" onClick={() => setIsDeleteConfirmOpen(false)} disabled={deleteProductProcessing} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50">Batal</button>
+                  <button type="button" onClick={handleProductDelete} disabled={deleteProductProcessing} className="rounded-xl bg-red-600 px-5 py-2 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50">
+                    {deleteProductProcessing ? 'Menghapus...' : 'Ya, Hapus'}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
