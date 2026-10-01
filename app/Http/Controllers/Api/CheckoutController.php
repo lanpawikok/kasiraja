@@ -32,8 +32,7 @@ class CheckoutController extends Controller
             $subtotal += $item['quantity'] * $item['price'];
         }
 
-        $tax = $subtotal * 0.10; // Pajak 10%
-        $total = $subtotal + $tax;
+        $total = $subtotal;
 
         $paymentMethod = $request->payment_method;
         $cashPaid = $request->input('cash_paid', $total);
@@ -50,7 +49,7 @@ class CheckoutController extends Controller
             ->whereNull('end_time')
             ->first();
 
-        $transaction = DB::transaction(function () use ($request, $subtotal, $tax, $total, $paymentMethod, $change) {
+        $transaction = DB::transaction(function () use ($request, $total, $paymentMethod, $change) {
             $transaction = $request->user()->transactions()->create([
                 'invoice_number' => 'INV-' . now()->format('Ymd-His') . '-' . rand(1000, 9999),
                 'total_amount' => $total,
@@ -74,7 +73,6 @@ class CheckoutController extends Controller
             'data' => [
                 'invoice_number' => $transaction->invoice_number,
                 'subtotal' => $subtotal,
-                'tax' => $tax,
                 'total' => $total,
                 'payment_method' => $paymentMethod,
                 'cash_paid' => $paymentMethod === 'cash' ? $cashPaid : null,

@@ -16,32 +16,52 @@ class OrderController extends Controller
     {
         // Validasi input dari frontend agar aman dan lengkap
         $request->validate([
-            'cart' => 'required|array',
-            'subtotal' => 'required|numeric',
-            'tax' => 'required|numeric',
-            'total' => 'required|numeric',
+            'cart' => 'required|array|min:1',
+            'cart.*.id' => 'required|integer',
+            'cart.*.qty' => 'required|integer|min:1',
             'customerName' => 'required|string',
-            'tableNumber' => 'required|string',
             'paymentMethod' => 'required|in:cash,deposit',
         ]);
 
         $orderData = DB::transaction(function () use ($request) {
+            // Harga, nama, dan kategori selalu diambil dari database, bukan dari
+            // payload browser, supaya total yang dipotong saldo tidak bisa dimanipulasi.
+            $resolvedItems = [];
+            $subtotal = 0;
+
             foreach ($request->input('cart') as $item) {
                 $product = Product::whereKey($item['id'] ?? null)
                     ->lockForUpdate()
                     ->first();
 
                 if (!$product) {
-                    continue;
+                    abort(422, 'Produk di keranjang tidak ditemukan.');
                 }
 
                 $quantity = (int) $item['qty'];
-                if ($product->stock < $quantity) {
+                if ($quantity > $product->stock) {
                     abort(422, "Stok {$product->name} tidak mencukupi.");
                 }
 
+                $lineTotal = $quantity * $product->price;
+                $lineTotal = round((float) $lineTotal, 2);
+
+                $resolvedItems[] = [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'category' => $product->category,
+                    'price' => (float) $product->price,
+                    'qty' => $quantity,
+                    'line_total' => $lineTotal,
+                ];
+
+                $subtotal += $lineTotal;
+
                 $product->decrement('stock', $quantity);
             }
+
+            $subtotal = round($subtotal, 2);
+            $total = $subtotal;
 
             $santri = null;
             if ($request->input('paymentMethod') === 'deposit') {
@@ -50,28 +70,30 @@ class OrderController extends Controller
                     ->first();
 
                 if (!$santri) {
-                    $santri = Santri::create(['name' => trim($request->input('customerName'))]);
+                    // Nama tidak ada di daftar Santri, jadi tidak ada saldo yang
+                    // bisa dipotong. Balikin 422 supaya kasir diarahkan pakai Cash
+                    // untuk warga atau pengunjung, bukan ikut tercatat punya utang.
+                    abort(422, 'Nama belum terdaftar, tidak bisa bayar pakai saldo. Pakai Cash saja.');
                 }
 
-                $santri->balance -= $request->input('total');
+                $santri->balance -= $total;
                 $santri->save();
 
                 SantriBalanceEntry::create([
                     'santri_id' => $santri->id,
                     'user_id' => $request->user()->id,
                     'type' => 'purchase',
-                    'amount' => -$request->input('total'),
+                    'amount' => -$total,
                     'balance_after' => $santri->balance,
                     'notes' => 'Pembelian kantin dari saldo deposit',
                     'details' => [
-                        'items' => collect($request->input('cart'))->map(fn (array $item) => [
+                        'items' => collect($resolvedItems)->map(fn (array $item) => [
                             'name' => $item['name'],
                             'qty' => $item['qty'],
                             'price' => $item['price'],
                         ])->values()->all(),
-                        'subtotal' => $request->input('subtotal'),
-                        'tax' => $request->input('tax'),
-                        'total' => $request->input('total'),
+                        'subtotal' => $subtotal,
+                        'total' => $total,
                     ],
                 ]);
             }
@@ -82,10 +104,9 @@ class OrderController extends Controller
             'cashier' => $request->user()->name,
             'customerName' => $request->input('customerName'), // Diambil dinamis dari form POS
             'santriBalance' => $santri?->balance,
-            'table' => $request->input('tableNumber'),       // Diambil dinamis dari form POS
-            'items' => collect($request->input('cart'))->map(function ($item) use ($request) {
+            'items' => collect($resolvedItems)->map(function ($item) use ($request) {
                 // Tentukan tipe item untuk Dapur atau Bar berdasarkan kategori produk
-                $category = strtolower($item['category'] ?? '');
+                $category = strtolower((string) $item['category']);
                 $type = in_array($category, ['kopi', 'non-kopi']) ? 'bar' : 'food';
 
                 return [
@@ -98,10 +119,9 @@ class OrderController extends Controller
                 ];
             })->toArray(),
             'paymentMethod' => $request->input('paymentMethod') === 'deposit' ? 'DEPOSIT' : 'CASH',
-            'cashPaid' => $request->input('total'), 
-            'subtotal' => $request->input('subtotal'),
-            'tax' => $request->input('tax'),
-            'total' => $request->input('total'),
+            'cashPaid' => $total,
+            'subtotal' => $subtotal,
+            'total' => $total,
             ];
         });
 

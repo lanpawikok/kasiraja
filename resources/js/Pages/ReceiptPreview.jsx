@@ -7,12 +7,10 @@ export default function ReceiptPreview({ order }) {
         id: order?.id || 'ORD-0842',
         date: order?.date || '24 Okt 2023, 14:30',
         customerName: order?.customerName || 'Pelanggan',
-        table: order?.table || '12',
         items: order?.items || [],
         paymentMethod: order?.paymentMethod || 'CASH',
         cashPaid: order?.cashPaid !== undefined ? order.cashPaid : 50000,
         backendSubtotal: order?.subtotal,
-        backendTax: order?.tax,
         backendTotal: order?.total
     };
 
@@ -25,15 +23,10 @@ export default function ReceiptPreview({ order }) {
         ? currentOrder.backendSubtotal
         : currentOrder.items.reduce((acc, item) => acc + (item.price * item.qty), 0);
 
-    const tax = currentOrder.backendTax !== undefined
-        ? currentOrder.backendTax
-        : subtotal * 0.10;
-
-    const service = subtotal * 0.05;
-
+    // Tanpa pajak maupun service: total struk harus sama persis dengan total di POS.
     const total = currentOrder.backendTotal !== undefined
-        ? currentOrder.backendTotal + service
-        : subtotal + tax + service;
+        ? currentOrder.backendTotal
+        : subtotal;
 
     const change = currentOrder.cashPaid - total;
 
@@ -190,7 +183,7 @@ export default function ReceiptPreview({ order }) {
                         </div>
                         <ReceiptDivider />
                         <ReceiptRow left={`No: ${currentOrder.id}`} right={currentOrder.date} />
-                        <ReceiptRow left={`Pelanggan: ${currentOrder.customerName}`} right={`Meja: ${currentOrder.table}`} />
+                        <ReceiptRow left={`Pelanggan: ${currentOrder.customerName}`} right={currentOrder.paymentMethod === 'DEPOSIT' ? 'Saldo' : 'Cash'} />
                         <ReceiptDivider />
 
                         <div className="flex-grow font-['Courier_New',Courier,monospace]">
@@ -215,8 +208,6 @@ export default function ReceiptPreview({ order }) {
 
                         <ReceiptDivider />
                         <ReceiptRow left="Subtotal" right={subtotal.toLocaleString('id-ID')} />
-                        <ReceiptRow left="PB1 (10%)" right={tax.toLocaleString('id-ID')} small />
-                        <ReceiptRow left="Service (5%)" right={service.toLocaleString('id-ID')} small />
                         <ReceiptDivider />
 
                         <div className="flex justify-between font-bold text-base mb-2 font-['Courier_New',Courier,monospace]">
@@ -244,7 +235,7 @@ export default function ReceiptPreview({ order }) {
                         <div className="text-center mb-4"><h3 className="font-bold text-xl uppercase tracking-widest text-[#2d4739]">DAPUR</h3></div>
                         <div className="border-t border-dashed border-[#2d4739] my-3"></div>
                         <div className="flex flex-col font-bold text-sm mb-2 font-['Courier_New',Courier,monospace]">
-                            <span className="text-lg">MEJA: {currentOrder.table}</span>
+                            <span className="text-lg">{currentOrder.id}</span>
                             <span className="text-sm font-normal text-slate-700">Pelanggan: {currentOrder.customerName}</span>
                         </div>
                         <div className="border-t border-dashed border-[#2d4739] my-3"></div>
@@ -268,7 +259,7 @@ export default function ReceiptPreview({ order }) {
                         <div className="text-center mb-4"><h3 className="font-bold text-xl uppercase tracking-widest text-[#5a3939]">BAR</h3></div>
                         <div className="border-t border-dashed border-[#5a3939] my-3"></div>
                         <div className="flex flex-col font-bold text-sm mb-2 font-['Courier_New',Courier,monospace]">
-                            <span className="text-lg">MEJA: {currentOrder.table}</span>
+                            <span className="text-lg">{currentOrder.id}</span>
                             <span className="text-sm font-normal text-slate-700">Pelanggan: {currentOrder.customerName}</span>
                         </div>
                         <div className="border-t border-dashed border-[#5a3939] my-3"></div>

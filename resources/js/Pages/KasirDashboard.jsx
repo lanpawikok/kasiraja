@@ -43,6 +43,14 @@ export default function KasirDashboard() {
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
 
+  const [newMenu, setNewMenu] = useState({
+    name: '',
+    price: '',
+    category: 'Kopi',
+    stock: '',
+    icon: 'local_cafe'
+  });
+
   // Menambah produk ke keranjang
   const addToCart = (product) => {
     if (product.stock <= 0) {

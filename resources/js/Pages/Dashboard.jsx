@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import PageSidebar from '@/Components/PageSidebar';
 
@@ -11,6 +11,38 @@ const INITIAL_PRODUCTS = [
   { id: 5, name: 'Cheesecake', price: 45000, category: 'Pastry', stock: 8, icon: 'cake' },
   { id: 6, name: 'Nasi Goreng Spesial', price: 50000, category: 'Makanan', stock: 15, icon: 'lunch_dining' },
 ];
+  
+// Helper di luar komponen supaya referensinya stabil dan aman dipakai
+// sebagai dependency useEffect.
+const fetchsantriBalance = async (name) => {
+  const response = await fetch(`${route('santri.balance')}?name=${encodeURIComponent(name)}`, {
+    headers: { Accept: 'application/json' },
+  });
+
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}));
+    const error = new Error(result.message || 'Saldo santri tidak ditemukan.');
+    error.status = response.status;
+    throw error;
+  }
+
+  const result = await response.json();
+  return Number(result.balance);
+};
+
+// Ringkas untuk pesan toast, misalnya "28k" atau "1.5jt". Saldo minus
+// tetap memakai tanda negatif supaya kasir tidak salah baca utang
+// sebagai saldo positif.
+const formatRupiahShort = (value) => {
+  const raw = Number(value) || 0;
+  const sign = raw < 0 ? '-' : '';
+  const amount = Math.abs(raw);
+  if (amount >= 1000000) {
+    const millions = amount / 1000000;
+    return `${sign}${millions.toFixed(millions % 1 === 0 ? 0 : 1).replace('.', ',')}jt`;
+  }
+  return `${sign}${Math.round(amount / 1000)}k`;
+};
 
 export default function Dashboard({ catalogProducts = [] }) {
   const { auth } = usePage().props;
@@ -21,14 +53,23 @@ export default function Dashboard({ catalogProducts = [] }) {
   // Cek admin (hanya role khusus manajemen/admin)
   const isAdmin = ['admin', 'administrator', 'owner', 'superadmin', 'manager'].includes(userRole);
 
-  console.log('User Role:', userRole);
-  console.log('Is Admin:', isAdmin);
-
   const [products, setProducts] = useState(catalogProducts.length > 0 ? catalogProducts : INITIAL_PRODUCTS);
   useEffect(() => {
     if (catalogProducts.length > 0) setProducts(catalogProducts);
   }, [catalogProducts]);
   const [cart, setCart] = useState([]);
+  // Ref ini hanya dipakai untuk membaca keranjang terbaru secara sinkron di
+  // dalam event handler. State `cart` bisa tertinggal satu render saat beberapa
+  // klik datang beruntun, sehingga batas stok sempat terlewat.
+  const cartRef = useRef(cart);
+  // Perhitungan dilakukan langsung dari ref lalu disimpan balik ke ref, bukan
+  // memakai updater fungsional, karena updater baru dijalankan saat render.
+  // Kalau ref hanya diisi di dalam updater, nilainya tetap basi sampai render.
+  const updateCart = (updater) => {
+    const nextCart = updater(cartRef.current);
+    cartRef.current = nextCart;
+    setCart(nextCart);
+  };
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('Semua');
   const baseCategories = ['Kopi', 'Non-Kopi', 'Makanan', 'Pastry'];
@@ -39,20 +80,57 @@ export default function Dashboard({ catalogProducts = [] }) {
   const variantOptions = Array.from(new Set([...baseVariants, ...products.map((p) => p.variant).filter(Boolean)]));
   const filterOptions = ['Semua', ...categoryOptions];
 
-  // State untuk Fitur Catatan & Pelanggan/Meja
+  // State untuk Fitur Catatan & Pelanggan
   const [orderNote, setOrderNote] = useState('');
   const [customerName, setCustomerName] = useState('');
-  const [tableNumber, setTableNumber] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('deposit');
-  const [depositAmount, setDepositAmount] = useState('');
-  const [depositProcessing, setDepositProcessing] = useState(false);
-  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
-  const [santriBalance, setSantriBalance] = useState(null);
-  const [balanceLoading, setBalanceLoading] = useState(false);
+  const [santriBalance, setsantriBalance] = useState(null);
   const [balanceError, setBalanceError] = useState('');
-  const [santriHistory, setSantriHistory] = useState([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
   const [toast, setToast] = useState(null);
+  const [balanceAutoLoading, setBalanceAutoLoading] = useState(false);
+  const [checkingBalance, setCheckingBalance] = useState(false);
+    // Bedakan "nama ada di daftar Santri" dari "nama tidak terdaftar". Tanpa
+    // ini, nama asing ikut terbaca punya saldo 0 sehingga panel saldo tetap
+    // muncul untuk warga atau pengunjung yang tidak punya saldo.
+    const [isKnownSantri, setIsKnownSantri] = useState(false);
+  const [balanceRefreshKey, setBalanceRefreshKey] = useState(0);
+  const [checkoutChecking, setCheckoutChecking] = useState(false);
+  const [isDebtConfirmOpen, setIsDebtConfirmOpen] = useState(false);
+
+  // State untuk Antrian: keranjang yang sudah diisi lalu disimpan/diparkir
+  // supaya kasir bisa lanjut melayani Santri berikutnya tanpa kehilangan
+  // pesanan yang sedang menunggu giliran. Antrian disimpan di localStorage
+  // supaya tetap ada walau kasir refresh halaman atau browser-nya ke-restart
+  // di tengah antrean.
+  const QUEUE_STORAGE_KEY = 'kasiraja.queue.v1';
+  const [queue, setQueue] = useState([]);
+  const [isQueueModalOpen, setIsQueueModalOpen] = useState(false);
+  const queueHydrated = useRef(false);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(QUEUE_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) setQueue(parsed);
+      }
+    } catch {
+      window.localStorage.removeItem(QUEUE_STORAGE_KEY);
+    } finally {
+      queueHydrated.current = true;
+    }
+  }, []);
+
+  useEffect(() => {
+    // Jangan tulis apa pun sebelum state selesai dibaca, supaya antrian lama
+    // tidak tertimpa array kosong saat halaman pertama kali dimuat.
+    if (!queueHydrated.current) return;
+    try {
+      window.localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(queue));
+    } catch {
+      showToast('Antrian tidak bisa disimpan di browser ini.', 'error');
+    }
+  }, [queue]);
 
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [tempNote, setTempNote] = useState('');
@@ -78,18 +156,47 @@ export default function Dashboard({ catalogProducts = [] }) {
     icon: 'local_cafe'
   });
 
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type });
-    window.setTimeout(() => setToast(null), 4200);
+  // Notifikasi kasir. Timer sebelumnya dibatalkan dulu supaya pesan lama tidak
+  // ikut menutup pesan yang baru saja muncul (kasir menekan kartu produk
+  // berkali-kali dalam waktu singkat).
+  const toastTimerRef = useRef(null);
+  const toastIdRef = useRef(0);
+  const showToast = (message, type = 'success', hint = '') => {
+    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    // Id baru memaksa React membuat ulang elemen toast, sehingga animasi masuk
+    // ikut terulang saat pesan yang sama muncul lagi.
+    toastIdRef.current += 1;
+    setToast({ message, type, hint, id: toastIdRef.current });
+    toastTimerRef.current = window.setTimeout(() => setToast(null), 3800);
+  };
+
+  const dismissToast = () => {
+    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    setToast(null);
   };
 
   // Menambah produk ke keranjang
   const addToCart = (product) => {
     if (product.stock <= 0) {
-      showToast('Stok produk habis.', 'error');
+      showToast(`${product.name} habis.`, 'error', 'Stoknya sudah 0, kas tidak bisa menambah.');
       return;
     }
-    setCart((prevCart) => {
+    // Sumber stok terkini dibaca dari ref, bukan dari state `cart`: beberapa
+    // klik beruntun bisa dievaluasi sebelum React sempat merender state
+    // terbaru, sehingga dua klik lolos kalau hanya membaca `cart`.
+    const currentQty =
+      cartRef.current.find((item) => item.id === product.id)?.qty ?? 0;
+    if (currentQty >= product.stock) {
+      showToast(
+        `Stok ${product.name} tinggal ${product.stock}.`,
+        'error',
+        currentQty === product.stock
+          ? 'Semua stok sudah masuk keranjang.'
+          : `Sisa ${product.stock - currentQty} lagi di keranjang.`
+      );
+      return;
+    }
+    updateCart((prevCart) => {
       const existingItem = prevCart.find((item) => item.id === product.id);
       if (existingItem) {
         return prevCart.map((item) =>
@@ -102,7 +209,16 @@ export default function Dashboard({ catalogProducts = [] }) {
 
   // Mengubah kuantitas item di keranjang
   const updateQuantity = (id, delta) => {
-    setCart((prevCart) =>
+    const target = cartRef.current.find((item) => item.id === id);
+    if (target && delta > 0 && target.qty + delta > target.stock) {
+      showToast(
+        `Stok ${target.name} tinggal ${target.stock}.`,
+        'error',
+        'Jumlah di keranjang sudah melebihi stok tersedia.'
+      );
+      return;
+    }
+    updateCart((prevCart) =>
       prevCart
         .map((item) => {
           if (item.id === id) {
@@ -225,10 +341,9 @@ export default function Dashboard({ catalogProducts = [] }) {
 
   // Mengosongkan keranjang
   const clearCart = () => {
-    setCart([]);
+    updateCart(() => []);
     setOrderNote('');
     setCustomerName('');
-    setTableNumber('');
   };
 
   // Fungsi Modal Catatan
@@ -242,104 +357,221 @@ export default function Dashboard({ catalogProducts = [] }) {
     setIsNoteModalOpen(false);
   };
 
-  const handleDeposit = () => {
-    if (!customerName.trim() || !depositAmount || Number(depositAmount) <= 0) {
-      showToast('Isi nama santri dan nominal deposit yang valid.', 'error');
+  // --- FITUR ANTRIAN ---
+  // Satu antrian berisi seluruh isi keranjang beserta data pembelinya, jadi
+  // kalau kasir sedang melayani orang lain, pesanan ini tetap utuh sampai dipanggil.
+  const buildQueueEntry = (note, name, method) => ({
+    cart: cart,
+    orderNote: note,
+    customerName: name,
+    paymentMethod: method,
+    total: total,
+    savedAt: Date.now(),
+  });
+
+  // Menyimpan keranjang saat ini ke antrian dan mengosongkan keranjang,
+  // supaya kasir bisa langsung mulai mengisi pesanan orang berikutnya.
+  const parkCartToQueue = () => {
+    if (cart.length === 0) {
+      showToast('Keranjang masih kosong.', 'error');
       return;
     }
 
-    setDepositProcessing(true);
-    router.post(route('santri.deposit'), {
-      name: customerName,
-      amount: Number(depositAmount),
-    }, {
-      preserveScroll: true,
-      onSuccess: () => {
-        setDepositAmount('');
-        setIsDepositModalOpen(false);
-        showToast('Deposit berhasil ditambahkan. Saldo otomatis mengurangi utang jika ada.');
-      },
-      onFinish: () => setDepositProcessing(false),
-    });
+    const entry = buildQueueEntry(orderNote, customerName, paymentMethod);
+    setQueue((prev) => [...prev, entry]);
+    clearCart();
+    setPaymentMethod('deposit');
+    setsantriBalance(null);
+        setIsKnownSantri(false);
+        setBalanceError('');
+    showToast(`Pesanan #${queue.length + 1} disimpan ke antrian. Keranjang siap diisi lagi.`);
   };
 
-  const handleCheckBalance = async () => {
-    if (!customerName.trim()) {
-      setBalanceError('Masukkan nama santri terlebih dahulu.');
-      setSantriBalance(null);
-      return;
+  // Memanggil kembali satu pesanan dari antrian untuk diproses pembayaran.
+  const recallFromQueue = (index) => {
+    const entry = queue[index];
+    if (!entry) return;
+
+    // Keranjang sekarang boleh tidak kosong; pesanan yang dipanggil menggantikan
+    // isinya, karena antrian dibuat justru untuk bergantian antar Santri.
+    updateCart(() => entry.cart);
+    setOrderNote(entry.orderNote || '');
+    setCustomerName(entry.customerName || '');
+    setPaymentMethod(entry.paymentMethod || 'deposit');
+    setsantriBalance(null);
+        setIsKnownSantri(false);
+        setBalanceError('');
+
+        const remaining = queue.filter((_, i) => i !== index);
+        setQueue(remaining);
+
+        if (entry.customerName) {
+          // Minta server refresh saldo, karena antrian bisa sudah berjam-jam lalu.
+          setBalanceRefreshKey((key) => key + 1);
     }
 
-    setBalanceLoading(true);
-    setBalanceError('');
-
-    try {
-      const response = await fetch(`${route('santri.balance')}?name=${encodeURIComponent(customerName)}`, {
-        headers: { Accept: 'application/json' },
-      });
-
-      if (!response.ok) {
-        const result = await response.json();
-        throw new Error(result.message || 'Saldo santri tidak ditemukan.');
-      }
-
-      const result = await response.json();
-      setSantriBalance(Number(result.balance));
-    } catch (error) {
-      setSantriBalance(null);
-      setBalanceError(error.message);
-    } finally {
-      setBalanceLoading(false);
-    }
+    showToast(`Pesanan ${index + 1} dipanggil. Silakan proses pembayaran.`);
   };
 
-  const handleLoadHistory = async () => {
-    if (!customerName.trim()) {
-      setBalanceError('Masukkan nama santri terlebih dahulu.');
-      return;
-    }
-
-    setHistoryLoading(true);
-    setBalanceError('');
-
-    try {
-      const response = await fetch(`${route('santri.history')}?name=${encodeURIComponent(customerName)}`, {
-        headers: { Accept: 'application/json' },
-      });
-
-      if (!response.ok) {
-        const result = await response.json();
-        throw new Error(result.message || 'Riwayat santri tidak ditemukan.');
-      }
-
-      const result = await response.json();
-      setSantriBalance(Number(result.balance));
-      setSantriHistory(result.entries || []);
-    } catch (error) {
-      setSantriHistory([]);
-      setBalanceError(error.message);
-    } finally {
-      setHistoryLoading(false);
-    }
+  const removeFromQueue = (index) => {
+    const removed = queue[index];
+    setQueue((prev) => prev.filter((_, i) => i !== index));
+    showToast(
+      removed?.customerName
+        ? `Pesanan ${removed.customerName} dibatalkan dari antrian.`
+        : `Pesanan ${index + 1} dibatalkan dari antrian.`,
+      'error',
+    );
   };
 
-  // Perhitungan Subtotal dan Pajak
+  // Cek saldo otomatis begitu nama diketik, supaya kasir tidak perlu buka
+  // halaman lain dulu untuk tahu saldo sudah minus.
+  useEffect(() => {
+    const name = customerName.trim();
+    if (!name) {
+      setsantriBalance(null);
+          setIsKnownSantri(false);
+          setBalanceError('');
+          setBalanceAutoLoading(false);
+          return;
+        }
+
+        let active = true;
+        setBalanceAutoLoading(true);
+
+        const timer = window.setTimeout(async () => {
+          try {
+            const balance = await fetchsantriBalance(name);
+            if (active) {
+              setsantriBalance(balance);
+              setIsKnownSantri(true);
+              setBalanceError('');
+            }
+          } catch (error) {
+            // Nama yang tidak ada di daftar Santri bukan error fatal, tapi juga bukan
+            // saldo nol. Kasir bisa saja ketik nama warga atau pengunjung yang memang
+            // tidak punya saldo, jadi panel saldo harus disembunyikan, bukan
+            // ditampilkan sebagai "Rp 0".
+            if (active) {
+              if (error.status === 404) {
+            setsantriBalance(null);
+                setIsKnownSantri(false);
+                setBalanceError('');
+              } else {
+                setsantriBalance(null);
+                setIsKnownSantri(false);
+                setBalanceError(error.message);
+              }
+            }
+          } finally {
+            if (active) setBalanceAutoLoading(false);
+          }
+        }, 400);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [customerName, balanceRefreshKey]);
+
+  // Perhitungan Subtotal dan Total. Pajak PB1 dan service sudah dihapus,
+  // jadi total transaksi sama persis dengan jumlah harga menu.
   const subtotal = cart.reduce((acc, item) => acc + item.price * item.qty, 0);
-  const tax = subtotal * 0.1;
-  const total = subtotal + tax;
+  const total = subtotal;
 
-  // Handler untuk Proses Pembayaran
-  const handleCheckout = () => {
+  // Sisa saldo setelah pesanan ini dibayar, supaya kasir langsung melihat
+    // risiko utang sebelum menekan tombol bayar. Panel hanya muncul kalau nama
+    // memang terdaftar sebagai Santri, bukan sekadar karena angka saldo ada.
+    const hasSantriBalance = isKnownSantri && santriBalance !== null;
+  const depositAfterOrder = paymentMethod === 'deposit' && hasSantriBalance
+    ? santriBalance - total
+    : null;
+  const isDepositShort = depositAfterOrder !== null && depositAfterOrder < 0;
+  const isSantriBalanceNegative = hasSantriBalance && santriBalance < 0;
+
+  // Kirim transaksi ke server.
+  const submitCheckout = () => {
     router.post(route('checkout.process'), {
-      cart: cart,
-      subtotal: subtotal,
-      tax: tax,
-      total: total,
-      orderNote: orderNote,
-      customerName: customerName,
-      tableNumber: tableNumber,
-      paymentMethod: paymentMethod,
+          cart: cart.map((item) => ({ id: item.id, qty: item.qty })),
+          orderNote: orderNote,
+          customerName: customerName,
+          paymentMethod: paymentMethod,
+        }, {
+      onSuccess: () => {
+        // Saldo dicek ulang supaya angkanya tidak lagi menampilkan nilai lama yang
+        // sudah terpakai untuk pesanan ini, dan keranjang dikosongkan di sisi
+        // klien — bukan hanya andari render ulang dari Inertia. Kalau tidak,
+        // isinya masih tertinggal di state walau transaksi sudah lunas.
+        setIsDebtConfirmOpen(false);
+        clearCart();
+        setsantriBalance(null);
+                setIsKnownSantri(false);
+                setBalanceError('');
+        setCheckoutChecking(false);
+        setBalanceRefreshKey((key) => key + 1);
+        showToast(
+          paymentMethod === 'deposit' && isDepositShort
+            ? `Transaksi tersimpan. Saldo ${customerName.trim()} kini minus ${formatRupiahShort(Math.abs(depositAfterOrder))}.`
+            : 'Transaksi berhasil disimpan.',
+        );      },
+      onError: (errors) => {
+        setCheckoutChecking(false);
+        const message = Object.values(errors || {})[0];
+        showToast(String(message || 'Transaksi gagal diproses. Coba lagi.'), 'error');
+      },
     });
+  };
+
+  // Handler untuk Proses Pembayaran. Kalau bayar pakai saldo, saldo selalu
+  // dicek ulang di server supaya angka yang ditampilkan kasir tidak basi.
+  const handleCheckout = async () => {
+    if (checkoutChecking) return;
+
+    if (paymentMethod !== 'deposit') {
+      setCheckoutChecking(true);
+      submitCheckout();
+      return;
+    }
+
+    if (!customerName.trim()) {
+      showToast('Isi nama santri sebelum membayar dengan saldo deposit.', 'error');
+      return;
+    }
+
+    setCheckingBalance(true);
+    try {
+      let balance;
+      try {
+        balance = await fetchsantriBalance(customerName.trim());
+      } catch (error) {
+            // Nama yang tidak ada di daftar Santri tidak bisa dibayar pakai saldo:
+            // tidak ada saldo yang bisa dipotong. Kasir harus bayar Cash supaya
+            // warga atau pengunjung ini tidak ikut tercatat punya utang.
+            if (error.status === 404) {
+              setsantriBalance(null);
+              setIsKnownSantri(false);
+              showToast('Nama belum terdaftar, pakai Cash saja.', 'error');
+              return;
+            }
+            throw error;
+          }
+
+          setsantriBalance(balance);
+          setIsKnownSantri(true);
+          setBalanceError('');
+
+      if (balance - total < 0) {
+        setIsDebtConfirmOpen(true);
+        return;
+      }
+
+      setCheckoutChecking(true);
+      submitCheckout();
+    } catch (error) {
+      showToast(error.message || 'Gagal mengecek saldo. Coba lagi.', 'error');
+    } finally {
+      setCheckingBalance(false);
+    }
   };
 
   // Filter Produk berdasarkan Kategori
@@ -368,7 +600,8 @@ export default function Dashboard({ catalogProducts = [] }) {
       <div className="bg-background text-on-background font-body-md h-[100dvh] min-h-[100dvh] overflow-hidden flex flex-col">
         <PageSidebar
           onAddMenu={() => setIsAddMenuOpen(true)}
-          onDeposit={() => setIsDepositModalOpen(true)}
+          onQueue={() => setIsQueueModalOpen(true)}
+          queueCount={queue.length}
           showActions
         />
         {/* TopAppBar */}
@@ -437,11 +670,18 @@ export default function Dashboard({ catalogProducts = [] }) {
             </Link>
             <button
               type="button"
-              onClick={() => setIsDepositModalOpen(true)}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-primary text-on-primary rounded-lg text-xs font-semibold hover:bg-primary/90 transition-colors cursor-pointer"
+              onClick={() => setIsQueueModalOpen(true)}
+              disabled={queue.length === 0}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-semibold hover:bg-amber-600 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Lihat pesanan yang sedang menunggu giliran"
             >
-              <span className="material-symbols-outlined text-[16px]">account_balance_wallet</span>
-              Deposit Santri
+              <span className="material-symbols-outlined text-[16px]">hourglass_top</span>
+              Antrian
+              {queue.length > 0 && (
+                <span className="ml-0.5 min-w-5 px-1.5 py-0.5 rounded-full bg-white text-amber-700 text-[11px] font-bold text-center">
+                  {queue.length}
+                </span>
+              )}
             </button>
           </div>
         </header>
@@ -484,6 +724,8 @@ export default function Dashboard({ catalogProducts = [] }) {
             <div className="grid min-h-0 flex-1 grid-cols-2 content-start gap-3 overflow-y-auto p-3 pb-20 sm:grid-cols-3 sm:gap-md sm:p-md sm:pb-6 lg:grid-cols-4">
               {filteredProducts.map((product) => {
                 const cartItem = cart.find((item) => item.id === product.id);
+                const isSoldOut = product.stock <= 0;
+                const isAtMaxStock = cartItem && cartItem.qty >= product.stock;
                 return (
                   <div
                     key={product.id}
@@ -496,13 +738,34 @@ export default function Dashboard({ catalogProducts = [] }) {
                     }}
                     role="button"
                     tabIndex={0}
-                    className={`group flex flex-col bg-surface-container-lowest rounded-xl overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)] border active:bg-surface-container-low transition-all text-left relative min-h-[160px] cursor-pointer ${
-                      cartItem ? 'border-2 border-primary' : 'border-transparent hover:border-outline-variant'
+                    className={`group flex flex-col bg-surface-container-lowest rounded-xl overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)] border transition-all text-left relative min-h-[160px] ${
+                      isSoldOut
+                        ? 'opacity-50 cursor-not-allowed grayscale'
+                        : 'active:bg-surface-container-low cursor-pointer ' +
+                          (isAtMaxStock
+                            ? 'border-2 border-amber-400'
+                            : cartItem
+                              ? 'border-2 border-primary'
+                              : 'border-transparent hover:border-outline-variant')
                     }`}
                   >
                     {cartItem && (
                       <div className="absolute top-2 right-2 bg-primary text-on-primary rounded-full w-6 h-6 flex items-center justify-center font-label-bold text-label-sm z-10 shadow-sm">
                         {cartItem.qty}
+                      </div>
+                    )}
+                    {isSoldOut && (
+                      <div className="absolute inset-x-0 top-2 flex justify-center z-10 pointer-events-none">
+                        <span className="rounded-full bg-slate-800/85 px-2.5 py-0.5 text-[10px] font-semibold text-white">
+                          Habis
+                        </span>
+                      </div>
+                    )}
+                    {!isSoldOut && isAtMaxStock && (
+                      <div className="absolute inset-x-0 top-2 flex justify-center z-10 pointer-events-none">
+                        <span className="rounded-full bg-amber-500/95 px-2.5 py-0.5 text-[10px] font-semibold text-white shadow-sm">
+                          Maksimal stok
+                        </span>
                       </div>
                     )}
                     <div className="h-28 w-full bg-surface-variant overflow-hidden relative flex items-center justify-center">
@@ -532,8 +795,16 @@ export default function Dashboard({ catalogProducts = [] }) {
                     <div className="p-sm flex flex-col justify-between flex-1">
                       <div className="flex justify-between items-start gap-1">
                         <h3 className="font-label-bold text-label-bold text-on-surface line-clamp-1">{product.name}</h3>
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded">
-                          Stok: {product.stock}
+                        <span
+                          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded whitespace-nowrap ${
+                            isSoldOut
+                              ? 'bg-red-50 text-red-600'
+                              : isAtMaxStock
+                                ? 'bg-amber-50 text-amber-700'
+                                : 'bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          {isSoldOut ? 'Habis' : isAtMaxStock ? 'Stok: ' + product.stock + ' (max)' : 'Stok: ' + product.stock}
                         </span>
                       </div>
                       {(product.size || product.variant) && (
@@ -564,6 +835,15 @@ export default function Dashboard({ catalogProducts = [] }) {
                 <h2 className="font-headline-sm text-headline-sm text-on-surface">Pesanan Saat Ini</h2>
                 <div className="flex gap-2">
                   <button
+                    onClick={parkCartToQueue}
+                    disabled={cart.length === 0}
+                    className="px-3 py-2 text-xs font-semibold text-on-primary bg-primary rounded-full transition-colors flex items-center justify-center gap-1 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    title="Simpan pesanan ini ke antrian, lalu lanjut mengisi pesanan berikutnya"
+                  >
+                    <span className="material-symbols-outlined text-base">hourglass_top</span>
+                    Simpan Antrian
+                  </button>
+                  <button
                     onClick={clearCart}
                     className="p-2 text-error hover:bg-error-container/20 rounded-full transition-colors flex items-center justify-center cursor-pointer"
                     title="Hapus Semua"
@@ -579,10 +859,10 @@ export default function Dashboard({ catalogProducts = [] }) {
                 </div>
               </div>
 
-              {/* Input Santri, Deposit & Nomor Meja */}
-              <div className="px-md pt-3 pb-2 bg-surface-container-lowest border-b border-outline-variant/20 grid grid-cols-2 gap-2">
+              {/* Input Nama Pelanggan */}
+              <div className="px-md pt-3 pb-2 bg-surface-container-lowest border-b border-outline-variant/20">
                 <div>
-                  <label className="block text-[11px] font-semibold text-on-surface-variant mb-1">Nama Santri</label>
+                  <label className="block text-[11px] font-semibold text-on-surface-variant mb-1">Nama</label>
                   <input
                     type="text"
                     placeholder="cth: Ahmad"
@@ -590,35 +870,14 @@ export default function Dashboard({ catalogProducts = [] }) {
                     onChange={(e) => setCustomerName(e.target.value)}
                     className="w-full p-2 bg-surface border border-outline-variant rounded-lg text-xs text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
                   />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-on-surface-variant mb-1">Nominal Deposit</label>
-                  <input
-                    type="number"
-                    min="1"
-                    placeholder="cth: 250000"
-                    value={depositAmount}
-                    onChange={(e) => setDepositAmount(e.target.value)}
-                    className="w-full p-2 bg-surface border border-outline-variant rounded-lg text-xs text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={handleDeposit}
-                  disabled={depositProcessing}
-                  className="col-span-2 py-2 rounded-lg border border-primary text-primary text-xs font-semibold hover:bg-primary/10 disabled:opacity-50"
-                >
-                  {depositProcessing ? 'Memproses Deposit...' : 'Tambah Deposit / Bayar Utang'}
-                </button>
-                <div className="col-span-2">
-                  <label className="block text-[11px] font-semibold text-on-surface-variant mb-1">Nomor Meja</label>
-                  <input
-                    type="text"
-                    placeholder="cth: 12"
-                    value={tableNumber}
-                    onChange={(e) => setTableNumber(e.target.value)}
-                    className="w-full p-2 bg-surface border border-outline-variant rounded-lg text-xs text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
+                                    {customerName.trim() && !isKnownSantri && !balanceAutoLoading && !balanceError && (
+                                      <p className="mt-1 text-[11px] text-amber-700">
+                                        Nama belum terdaftar sebagai Santri, tidak ada saldo. Gunakan Cash.
+                                      </p>
+                                    )}
+                                    {balanceError && (
+                                      <p className="mt-1 text-[11px] text-red-600">{balanceError}</p>
+                                    )}
                 </div>
               </div>
 
@@ -643,7 +902,13 @@ export default function Dashboard({ catalogProducts = [] }) {
                         <span className="w-8 text-center font-label-bold text-label-bold text-on-surface">{item.qty}</span>
                         <button
                           onClick={() => updateQuantity(item.id, 1)}
-                          className="w-8 h-full flex items-center justify-center bg-surface hover:bg-surface-variant text-on-surface-variant active:bg-surface-dim transition-colors cursor-pointer"
+                          disabled={item.qty >= item.stock}
+                          title={item.qty >= item.stock ? `Stok maksimal ${item.stock}` : 'Tambah'}
+                          className={`w-8 h-full flex items-center justify-center transition-colors ${
+                            item.qty >= item.stock
+                              ? 'bg-surface text-on-surface-variant/30 cursor-not-allowed'
+                              : 'bg-surface hover:bg-surface-variant text-on-surface-variant active:bg-surface-dim cursor-pointer'
+                          }`}
                         >
                           <span className="material-symbols-outlined text-[18px]">add</span>
                         </button>
@@ -684,15 +949,47 @@ export default function Dashboard({ catalogProducts = [] }) {
                     <span>Subtotal</span>
                     <span>Rp {subtotal.toLocaleString('id-ID')}</span>
                   </div>
-                  <div className="flex justify-between items-center text-on-surface-variant font-body-md text-sm">
-                    <span>Pajak PB1 (10%)</span>
-                    <span>Rp {tax.toLocaleString('id-ID')}</span>
-                  </div>
                   <div className="flex justify-between items-center font-headline-sm text-headline-sm text-on-surface pt-2 border-t border-outline-variant/30 mt-1">
                     <span>Total</span>
                     <span className="text-primary font-bold">Rp {total.toLocaleString('id-ID')}</span>
                   </div>
                 </div>
+
+                {/* Ringkasan saldo dan proyeksi utang supaya kasir langsung
+                    melihat konsekuensi sebelum menekan tombol bayar. */}
+                {paymentMethod === 'deposit' && hasSantriBalance && (
+                  <div className={`rounded-xl border p-3 text-sm ${
+                    isDepositShort
+                      ? 'border-red-200 bg-red-50 text-red-700'
+                      : isSantriBalanceNegative
+                        ? 'border-amber-200 bg-amber-50 text-amber-700'
+                        : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  }`}>
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-xs font-semibold">
+                        Saldo {customerName.trim() || 'santri'}
+                        {santriBalance < 0 ? ' (sudah utang)' : ''}
+                      </span>
+                      <span className="font-bold">
+                        Rp {santriBalance.toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                    <div className="mt-1.5 flex justify-between items-center gap-2 border-t border-current/15 pt-1.5">
+                      <span className="text-xs font-semibold">
+                        Sisa saldo setelah bayar
+                      </span>
+                      <span className={`font-bold ${isDepositShort ? 'text-red-600' : ''}`}>
+                        Rp {depositAfterOrder.toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                    {isDepositShort && (
+                      <p className="mt-1.5 text-[11px] leading-4">
+                        Saldo tidak cukup. Simpan sebagai utang dengan menekan
+                        tombol Bayar.
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <div>
                   <p className="mb-2 text-xs font-semibold text-on-surface-variant">Metode Pembayaran</p>
@@ -732,130 +1029,16 @@ export default function Dashboard({ catalogProducts = [] }) {
                 <button
                   type="button"
                   onClick={handleCheckout}
-                  className="w-full bg-primary text-on-primary h-[64px] rounded-xl flex items-center justify-center gap-2 hover:bg-primary/90 active:scale-[0.98] transition-all shadow-md group cursor-pointer relative z-30 pointer-events-auto"
+                  disabled={checkoutChecking}
+                  className="w-full bg-primary text-on-primary h-[64px] rounded-xl flex items-center justify-center gap-2 hover:bg-primary/90 active:scale-[0.98] transition-all shadow-md group cursor-pointer relative z-30 pointer-events-auto disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <span className="font-pos-price text-pos-price tracking-wide">
-                    Bayar {paymentMethod === 'cash' ? 'Cash' : 'Saldo'} {(total / 1000).toFixed(0)}k
+                    {checkoutChecking ? 'Memproses...' : `Bayar ${paymentMethod === 'cash' ? 'Cash' : 'Saldo'} ${(total / 1000).toFixed(0)}k`}
                   </span>
                   <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
                 </button>
               </div>
             </aside>
-          )}
-
-          {isDepositModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
-                <div className="flex items-center justify-between mb-5">
-                  <h2 className="text-lg font-bold text-on-surface">Deposit Santri</h2>
-                  <button
-                    type="button"
-                    onClick={() => setIsDepositModalOpen(false)}
-                    className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant"
-                  >
-                    <span className="material-symbols-outlined">close</span>
-                  </button>
-                </div>
-                <div className="flex flex-col gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-on-surface-variant mb-1">Nama Santri</label>
-                    <input
-                      type="text"
-                      placeholder="Contoh: Ahmad"
-                      value={customerName}
-                      onChange={(event) => setCustomerName(event.target.value)}
-                      className="w-full p-3 bg-surface border border-outline-variant rounded-lg text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-on-surface-variant mb-1">Nominal Deposit</label>
-                    <input
-                      type="number"
-                      min="1"
-                      placeholder="Contoh: 250000"
-                      value={depositAmount}
-                      onChange={(event) => setDepositAmount(event.target.value)}
-                      className="w-full p-3 bg-surface border border-outline-variant rounded-lg text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleCheckBalance}
-                    disabled={balanceLoading}
-                    className="w-full py-2 rounded-lg border border-outline-variant text-on-surface text-sm font-semibold hover:bg-surface-container disabled:opacity-50"
-                  >
-                    {balanceLoading ? 'Mengecek Saldo...' : 'Cek Saldo Santri'}
-                  </button>
-                  {santriBalance !== null && (
-                    <div className={`rounded-lg p-3 ${santriBalance < 0 ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>
-                      <p className="text-xs font-semibold">Saldo {customerName}</p>
-                      <p className="text-lg font-bold">
-                        Rp {Math.abs(santriBalance).toLocaleString('id-ID')}
-                        {santriBalance < 0 ? ' (Utang)' : ''}
-                      </p>
-                    </div>
-                  )}
-                  {balanceError && <p className="text-xs text-red-600">{balanceError}</p>}
-                  <button
-                    type="button"
-                    onClick={handleLoadHistory}
-                    disabled={historyLoading}
-                    className="w-full py-2 rounded-lg border border-outline-variant text-on-surface text-sm font-semibold hover:bg-surface-container disabled:opacity-50"
-                  >
-                    {historyLoading ? 'Memuat Riwayat...' : 'Lihat Jajan Hari Ini'}
-                  </button>
-                  {santriHistory.length > 0 && (
-                    <div className="max-h-48 overflow-y-auto rounded-lg border border-outline-variant/50">
-                      {santriHistory.map((entry) => (
-                        <div key={entry.id} className="p-2 border-b last:border-b-0 border-outline-variant/30 text-xs">
-                          <div className="flex justify-between gap-2">
-                            <span className="font-semibold">
-                              {entry.type === 'purchase' ? 'Belanja' : 'Deposit'}
-                            </span>
-                            <span>{new Date(entry.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
-                          </div>
-                          {entry.type === 'purchase' ? (
-                            <div className="mt-1 text-on-surface-variant">
-                              {(entry.details?.items || []).map((item) => (
-                                <div key={`${entry.id}-${item.name}`}>
-                                  {item.name} x{item.qty} - Rp {(item.price * item.qty).toLocaleString('id-ID')}
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="mt-1 text-emerald-700">
-                              Deposit Rp {Number(entry.amount).toLocaleString('id-ID')}
-                            </div>
-                          )}
-                          <div className="mt-1 font-semibold">
-                            Saldo: Rp {Number(entry.balance_after).toLocaleString('id-ID')}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {santriHistory.length > 0 && (
-                    <a
-                      href={`${route('santri.history.export')}?name=${encodeURIComponent(customerName)}`}
-                      className="w-full py-2 rounded-lg bg-slate-700 text-white text-sm font-semibold text-center hover:bg-slate-800"
-                    >
-                      Export Riwayat CSV
-                    </a>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleDeposit}
-                    disabled={depositProcessing}
-                    className="w-full py-3 rounded-lg bg-primary text-on-primary font-semibold disabled:opacity-50"
-                  >
-                    {depositProcessing ? 'Memproses...' : 'Simpan Deposit'}
-                  </button>
-                  <p className="text-xs text-on-surface-variant">
-                    Deposit baru otomatis mengurangi utang jika saldo santri sedang minus.
-                  </p>
-                </div>
-              </div>
-            </div>
           )}
 
           {/* Modal Tambah Menu Baru */}
@@ -1110,41 +1293,182 @@ export default function Dashboard({ catalogProducts = [] }) {
             </div>
           )}
 
-          {toast && (
-            <div className="pointer-events-none fixed bottom-6 right-6 z-[80] flex w-[calc(100%-3rem)] justify-end sm:w-auto">
-              <div className={`pointer-events-auto relative w-full max-w-lg overflow-hidden rounded-3xl border shadow-[0_24px_70px_rgba(16,41,31,0.28)] backdrop-blur-xl animate-in slide-in-from-bottom-5 fade-in zoom-in-95 duration-500 ${
-                toast.type === 'error'
-                  ? 'border-red-200 bg-red-50/98 text-red-900'
-                  : 'border-[#d6ae5c]/60 bg-white/98 text-[#173f2d]'
-              }`}>
-                <div className={`h-1.5 w-full ${
-                  toast.type === 'error' ? 'bg-red-500' : 'bg-gradient-to-r from-[#173f2d] via-[#d6ae5c] to-[#173f2d]'
-                }`} />
-                <div className="flex items-center gap-4 p-5 sm:p-6">
-                  <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl shadow-inner ${
-                    toast.type === 'error' ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-700'
-                  }`}>
-                    <span className="material-symbols-outlined text-[32px]">
-                      {toast.type === 'error' ? 'error' : 'check_circle'}
+          {isDebtConfirmOpen && (
+            <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+              <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+                <div className="flex items-center gap-3 text-amber-600">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
+                    <span className="material-symbols-outlined">warning</span>
+                  </span>
+                  <h3 className="text-base font-bold text-slate-900">Saldo Tidak Cukup</h3>
+                </div>
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  Saldo <span className="font-bold text-slate-900">{customerName.trim()}</span>{' '}
+                  <span className={`font-bold ${santriBalance < 0 ? 'text-red-600' : 'text-slate-900'}`}>
+                    ({santriBalance < 0 ? 'utang ' : ''}{formatRupiahShort(santriBalance)})
+                  </span>{' '}
+                  tidak cukup untuk total{' '}
+                  <span className="font-bold text-slate-900">Rp {total.toLocaleString('id-ID')}</span>. Lanjut menyimpan transaksi akan membuat saldo minus{' '}
+                  <span className="font-bold text-red-600">{formatRupiahShort(depositAfterOrder)}</span>.
+                </p>
+                <div className="mt-6 flex justify-end gap-2">
+                  <button type="button" onClick={() => setIsDebtConfirmOpen(false)} disabled={checkoutChecking} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50">
+                    Batal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsDebtConfirmOpen(false);
+                      setCheckoutChecking(true);
+                      submitCheckout();
+                    }}
+                    disabled={checkoutChecking}
+                    className="rounded-xl bg-amber-600 px-5 py-2 text-sm font-bold text-white hover:bg-amber-700 disabled:opacity-50"
+                  >
+                    {checkoutChecking ? 'Memproses...' : 'Ya, Simpan sebagai Utang'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isQueueModalOpen && (
+            <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+              <div className="flex max-h-[85dvh] w-full max-w-md flex-col rounded-2xl bg-white shadow-2xl">
+                <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+                  <div className="flex items-center gap-3 text-amber-600">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
+                      <span className="material-symbols-outlined">hourglass_top</span>
                     </span>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className={`text-xs font-extrabold uppercase tracking-[0.2em] ${
-                      toast.type === 'error' ? 'text-red-600' : 'text-[#b38735]'
-                    }`}>
-                      {toast.type === 'error' ? 'Perlu perhatian' : 'Transaksi berhasil'}
-                    </p>
-                    <p className="mt-1 text-base font-bold leading-6 sm:text-lg">{toast.message}</p>
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900">Antrian Pesanan</h3>
+                      <p className="text-xs text-slate-500">{queue.length} pesanan menunggu giliran</p>
+                    </div>
                   </div>
                   <button
                     type="button"
-                    onClick={() => setToast(null)}
-                    className="self-start rounded-xl p-2 opacity-50 transition hover:bg-black/5 hover:opacity-100"
-                    aria-label="Tutup notifikasi"
+                    onClick={() => setIsQueueModalOpen(false)}
+                    className="rounded-full p-2 text-slate-500 hover:bg-slate-100"
+                    aria-label="Tutup"
                   >
                     <span className="material-symbols-outlined">close</span>
                   </button>
                 </div>
+
+                {queue.length === 0 ? (
+                  <div className="px-6 py-12 text-center">
+                    <span className="material-symbols-outlined text-5xl text-slate-300">hourglass_empty</span>
+                    <p className="mt-3 text-sm font-semibold text-slate-700">Antrian kosong</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Tekan &quot;Simpan Antrian&quot; di keranjang untuk menitipkan pesanan yang belum sempat dibayar.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
+                    {queue.map((entry, index) => (
+                      <div key={entry.savedAt} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-slate-900">
+                              #{index + 1} {entry.customerName?.trim() || 'Tanpa nama'}
+                            </p>
+                            <p className="mt-0.5 text-[11px] text-slate-500">
+                              {entry.cart.length} item
+                            </p>
+                          </div>
+                          <p className="shrink-0 text-sm font-bold text-emerald-700">
+                            Rp {Number(entry.total || 0).toLocaleString('id-ID')}
+                          </p>
+                        </div>
+
+                        {entry.orderNote && (
+                          <p className="mt-2 rounded-lg bg-white px-2 py-1 text-[11px] text-slate-600">Catatan: {entry.orderNote}</p>
+                        )}
+
+                        <p className="mt-2 text-[10px] uppercase tracking-wide text-slate-400">
+                          Disimpan {new Date(entry.savedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+
+                        <div className="mt-3 flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              recallFromQueue(index);
+                              setIsQueueModalOpen(false);
+                            }}
+                            className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700"
+                          >
+                            Panggil
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeFromQueue(index)}
+                            className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50"
+                          >
+                            Batalkan
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="border-t border-slate-100 px-6 py-4">
+                  <button
+                    type="button"
+                    onClick={() => setIsQueueModalOpen(false)}
+                    className="w-full rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+                  >
+                    Tutup
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {toast && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="pointer-events-none fixed inset-x-4 bottom-[92px] z-[80] flex justify-center sm:inset-x-auto sm:bottom-6 sm:right-6 sm:justify-end"
+            >
+              <div
+                key={toast.id}
+                className={`toast-enter pointer-events-auto relative flex w-full max-w-sm items-start gap-3 overflow-hidden rounded-2xl border p-3.5 shadow-[0_18px_44px_rgba(16,41,31,0.2)] ${
+                  toast.type === 'error'
+                    ? 'border-amber-200 bg-amber-50 text-amber-950'
+                    : 'border-emerald-200 bg-emerald-50 text-emerald-950'
+                }`}
+              >
+                <span
+                  className={`material-symbols-outlined mt-px shrink-0 text-[22px] ${
+                    toast.type === 'error' ? 'text-amber-600' : 'text-emerald-600'
+                  }`}
+                  aria-hidden="true"
+                >
+                  {toast.type === 'error' ? 'error' : 'check_circle'}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-bold leading-5">{toast.message}</p>
+                  {toast.hint && (
+                    <p className="mt-0.5 text-[12px] leading-4 opacity-70">{toast.hint}</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={dismissToast}
+                  className="-mr-1 -mt-1 shrink-0 rounded-lg p-1 opacity-40 transition hover:bg-black/5 hover:opacity-100"
+                  aria-label="Tutup notifikasi"
+                >
+                  <span className="material-symbols-outlined text-[18px]">close</span>
+                </button>
+                <span
+                  className={`absolute inset-x-0 bottom-0 h-0.5 origin-left ${
+                    toast.type === 'error' ? 'bg-amber-500' : 'bg-emerald-500'
+                  }`}
+                  style={{ animation: 'toast-progress 3800ms linear both' }}
+                  aria-hidden="true"
+                />
               </div>
             </div>
           )}

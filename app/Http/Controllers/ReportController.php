@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Attendance;
 use App\Models\Inventory;
 use App\Models\SantriBalanceEntry;
-use App\Models\StockAudit;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -15,9 +15,27 @@ class ReportController extends Controller
 {
     public function index(Request $request): Response
     {
-        $selectedMonth = $request->input('month', date('Y-m'));
-        if (!preg_match('/^\d{4}-\d{2}$/', $selectedMonth)) {
-            $selectedMonth = date('Y-m');
+        $selectedDate = $request->input('date');
+        if ($selectedDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $selectedDate)) {
+            $selectedDate = null;
+        }
+        if ($selectedDate) {
+            try {
+                $dateCarbon = Carbon::createFromFormat('Y-m-d', $selectedDate);
+                $selectedMonth = $dateCarbon->format('Y-m');
+            } catch (\Exception $e) {
+                $selectedDate = null;
+                $selectedMonth = $request->input('month', date('Y-m'));
+                if (!preg_match('/^\d{4}-\d{2}$/', $selectedMonth)) {
+                    $selectedMonth = date('Y-m');
+                }
+            }
+        } else {
+            $selectedDate = null;
+            $selectedMonth = $request->input('month', date('Y-m'));
+            if (!preg_match('/^\d{4}-\d{2}$/', $selectedMonth)) {
+                $selectedMonth = date('Y-m');
+            }
         }
         $month = Carbon::createFromFormat('Y-m', $selectedMonth);
         $start = $month->copy()->startOfMonth();
@@ -27,7 +45,13 @@ class ReportController extends Controller
             ->whereBetween('created_at', [$start, $end])
             ->orderBy('created_at')
             ->get();
-        $dailySales = $purchases->filter(fn (SantriBalanceEntry $entry) => $entry->created_at->isToday())
+        $dailySales = $purchases
+            ->filter(function (SantriBalanceEntry $entry) use ($selectedDate) {
+                if ($selectedDate) {
+                    return $entry->created_at->toDateString() === $selectedDate;
+                }
+                return $entry->created_at->isToday();
+            })
             ->groupBy(fn (SantriBalanceEntry $entry) => $entry->created_at->toDateString())
             ->map(function ($entries, $date) {
                 $items = $entries
@@ -66,10 +90,18 @@ class ReportController extends Controller
             ];
         });
 
-        $auditItems = StockAudit::all();
-
         // Menghitung total pengeluaran secara dinamis dari tabel inventaris
         $totalExpense = Inventory::whereBetween('created_at', [$start, $end])->sum('total_price');
+
+        // Data Kehadiran Bulanan
+        $attendanceStats = Attendance::whereBetween('date', [$start->toDateString(), $end->toDateString()])
+            ->get()
+            ->groupBy('status')
+            ->map(fn ($group) => $group->count());
+
+        $onTimeCount = $attendanceStats->get('Tepat Waktu', 0);
+        $lateCount = $attendanceStats->get('Telat', 0);
+        $absentCount = 0; // Bisa ditambah logic jika ada model Absent
 
         $summary = [
             'total_income' => $purchases->sum(fn (SantriBalanceEntry $entry) => abs((float) $entry->amount)),
@@ -79,11 +111,16 @@ class ReportController extends Controller
         ];
 
         return Inertia::render('Reports/Index', [
-            'auditItemsData' => $auditItems,
             'summary' => $summary,
             'selectedMonth' => $selectedMonth,
+            'selectedDate' => $selectedDate,
             'dailySales' => $dailySales,
             'monthlyTrend' => $monthlyTrend,
+            'attendanceStats' => [
+                'onTime' => $onTimeCount,
+                'late' => $lateCount,
+                'absent' => $absentCount,
+            ],
         ]);
     }
 
@@ -137,24 +174,5 @@ class ReportController extends Controller
             fputcsv($handle, ['Total Pengeluaran', $expenses->sum('total_price')]);
             fclose($handle);
         }, "laporan-keuangan-{$monthInput}.csv", ['Content-Type' => 'text/csv; charset=UTF-8']);
-    }
-
-    public function storeAudit(Request $request)
-    {
-        $validated = $request->validate([
-            'audits' => 'required|array',
-            'audits.*.id' => 'required|exists:stock_audits,id',
-            'audits.*.physicalStock' => 'required|numeric',
-            'audits.*.reason' => 'nullable|string',
-        ]);
-
-        foreach ($validated['audits'] as $item) {
-            StockAudit::where('id', $item['id'])->update([
-                'physical_stock' => $item['physicalStock'],
-                'reason' => $item['reason'],
-            ]);
-        }
-
-        return redirect()->back()->with('success', 'Audit stok berhasil disimpan.');
     }
 }

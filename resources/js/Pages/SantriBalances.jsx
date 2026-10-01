@@ -15,6 +15,50 @@ export default function SantriBalances({ santris = [] }) {
     const [historyLoading, setHistoryLoading] = useState(false);
     const [historyError, setHistoryError] = useState('');
 
+    // Tambah saldo dipindah ke halaman ini karena panel kasir tidak lagi
+    // menyediakan form deposit. Nominal yang sama juga bisa dipakai untuk
+    // membayar utang.
+    const [depositName, setDepositName] = useState('');
+    const [depositAmount, setDepositAmount] = useState('');
+    const [depositProcessing, setDepositProcessing] = useState(false);
+    const [depositError, setDepositError] = useState('');
+
+    const handleDeposit = (event) => {
+        event.preventDefault();
+
+        const amount = Number(depositAmount);
+        if (!depositName.trim()) {
+            setDepositError('Isi nama santri terlebih dahulu.');
+            return;
+        }
+        if (!depositAmount || Number.isNaN(amount) || amount <= 0) {
+            setDepositError('Nominal harus lebih besar dari nol.');
+            return;
+        }
+
+        setDepositError('');
+        setDepositProcessing(true);
+        router.post(route('santri.deposit'), {
+            name: depositName.trim(),
+            amount,
+        }, {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => {
+                setDepositAmount('');
+                setDepositProcessing(false);
+                setDepositError('');
+                setHistory([]);
+                setHistoryError('');
+            },
+            onError: (errors) => {
+                setDepositProcessing(false);
+                setDepositError(String(errors?.amount || errors?.name || 'Gagal menyimpan deposit.'));
+            },
+            onFinish: () => setDepositProcessing(false),
+        });
+    };
+
     useEffect(() => {
         const interval = window.setInterval(() => {
             router.reload({ only: ['santris'], preserveScroll: true, preserveState: true });
@@ -88,6 +132,41 @@ export default function SantriBalances({ santris = [] }) {
                                 />
                             </div>
                         </div>
+
+                        <form onSubmit={handleDeposit} className="mb-6 grid gap-3 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-outline-variant/30 sm:grid-cols-[minmax(0,1fr)_12rem_auto] sm:items-end">
+                            <div className="min-w-0">
+                                <label htmlFor="deposit-name" className="mb-1 block text-xs font-semibold text-on-surface-variant">Nama Santri</label>
+                                <input
+                                    id="deposit-name"
+                                    type="text"
+                                    value={depositName}
+                                    onChange={(event) => setDepositName(event.target.value)}
+                                    placeholder="Cari atau ketik nama..."
+                                    className="w-full rounded-xl border border-outline-variant bg-surface py-2.5 px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="deposit-amount" className="mb-1 block text-xs font-semibold text-on-surface-variant">Nominal</label>
+                                <input
+                                    id="deposit-amount"
+                                    type="number"
+                                    min="1"
+                                    value={depositAmount}
+                                    onChange={(event) => setDepositAmount(event.target.value)}
+                                    placeholder="cth: 250000"
+                                    className="w-full rounded-xl border border-outline-variant bg-surface py-2.5 px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                />
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={depositProcessing}
+                                className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary transition hover:opacity-90 disabled:opacity-50"
+                            >
+                                <span className="material-symbols-outlined text-[18px]">account_balance_wallet</span>
+                                {depositProcessing ? 'Memproses...' : 'Tambah Saldo'}
+                            </button>
+                            {depositError && <p className="text-xs text-red-600 sm:col-span-3">{depositError}</p>}
+                        </form>
 
                         <div className="mb-6 grid gap-4 sm:grid-cols-3">
                             <div className="rounded-2xl bg-primary p-5 text-on-primary shadow-sm">

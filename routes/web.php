@@ -102,7 +102,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::prefix('laporan')->name('laporan.')->group(function () {
             Route::get('/', [ReportController::class, 'index'])->name('index');
             Route::get('/export/monthly', [ReportController::class, 'exportMonthly'])->name('export.monthly');
-            Route::post('/audit', [ReportController::class, 'storeAudit'])->name('audit.store');
             Route::get('/export/pdf', [ReportController::class, 'exportPdf'])->name('export.pdf');
             Route::get('/export/excel', [ReportController::class, 'exportExcel'])->name('export.excel');
             Route::get('/{id}', [ReportController::class, 'show'])->name('laporan.show');

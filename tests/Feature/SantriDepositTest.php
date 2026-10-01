@@ -93,27 +93,57 @@ class SantriDepositTest extends TestCase
     {
         $user = User::factory()->create(['role' => 'kasir']);
         $santri = Santri::create(['name' => 'Citra', 'balance' => 250000]);
+        $product = Product::create([
+            'name' => 'Nasi Goreng',
+            'sku' => 'TEST-NASI-GORENG',
+            'price' => 50000,
+            'stock' => 45,
+            'category' => 'Makanan',
+        ]);
 
         $response = $this->actingAs($user)->post('/checkout/process', [
             'cart' => [
-                ['id' => 1, 'name' => 'Nasi Goreng', 'price' => 50000, 'qty' => 1, 'category' => 'Makanan'],
+                ['id' => $product->id, 'name' => $product->name, 'price' => 50000, 'qty' => 1, 'category' => 'Makanan'],
             ],
             'subtotal' => 50000,
-            'tax' => 5000,
-            'total' => 55000,
+            'total' => 50000,
             'customerName' => 'Citra',
-            'tableNumber' => '1',
             'paymentMethod' => 'deposit',
         ]);
 
         $response->assertRedirect(route('receipt.preview', absolute: false));
-        $this->assertSame('195000.00', $santri->refresh()->balance);
+        $this->assertSame('200000.00', $santri->refresh()->balance);
         $this->assertDatabaseHas('santri_balance_entries', [
             'santri_id' => $santri->id,
             'type' => 'purchase',
-            'amount' => -55000,
-            'balance_after' => 195000,
+            'amount' => -50000,
+            'balance_after' => 200000,
         ]);
+    }
+
+    public function test_checkout_rejects_deposit_for_an_unregistered_name(): void
+    {
+        $user = User::factory()->create(['role' => 'kasir']);
+        $product = Product::create([
+            'name' => 'Nasi Goreng',
+            'sku' => 'TEST-NASI-GORENG-UNREGISTERED',
+            'price' => 50000,
+            'stock' => 45,
+            'category' => 'Makanan',
+        ]);
+
+        $this->actingAs($user)->post('/checkout/process', [
+            'cart' => [
+                ['id' => $product->id, 'qty' => 1],
+            ],
+            'customerName' => 'Pengunjung Umum',
+            'paymentMethod' => 'deposit',
+        ])->assertStatus(422);
+
+        // Nama asing tidak boleh ikut tercipta sebagai Santri dan saldo
+        // produk juga harus utuh karena transaksi ditolak.
+        $this->assertDatabaseMissing('santris', ['name' => 'Pengunjung Umum']);
+        $this->assertSame(45, $product->refresh()->stock);
     }
 
     public function test_checkout_deducts_product_stock(): void
@@ -132,10 +162,8 @@ class SantriDepositTest extends TestCase
                 ['id' => $product->id, 'name' => $product->name, 'price' => 50000, 'qty' => 2, 'category' => 'Makanan'],
             ],
             'subtotal' => 100000,
-            'tax' => 10000,
-            'total' => 110000,
+            'total' => 100000,
             'customerName' => 'Pembeli Cash',
-            'tableNumber' => '1',
             'paymentMethod' => 'cash',
         ])->assertRedirect(route('receipt.preview', absolute: false));
 

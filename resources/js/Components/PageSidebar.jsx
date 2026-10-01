@@ -9,7 +9,7 @@ const navigation = [
     { label: 'Absen', href: '/attendance', match: 'attendance*', icon: 'badge' },
 ];
 
-export default function PageSidebar({ onAddMenu, onDeposit, showActions = true }) {
+export default function PageSidebar({ onAddMenu, onQueue, queueCount = 0, showActions = true }) {
     const { auth } = usePage().props;
     const [open, setOpen] = useState(false);
     const user = auth?.user;
@@ -71,16 +71,16 @@ export default function PageSidebar({ onAddMenu, onDeposit, showActions = true }
                                 Tambah Menu
                             </Link>
                         )}
-                        {onDeposit ? (
-                            <button onClick={onDeposit} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-emerald-50/75 hover:bg-white/10 hover:text-white">
-                                <span className="material-symbols-outlined">account_balance_wallet</span>
-                                Deposit Santri
+                        {onQueue && (
+                            <button onClick={onQueue} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-emerald-50/75 hover:bg-white/10 hover:text-white">
+                                <span className="material-symbols-outlined">hourglass_top</span>
+                                Antrian
+                                {queueCount > 0 && (
+                                    <span className="ml-auto rounded-full bg-amber-400 px-2 py-0.5 text-[11px] font-bold text-[#10291f]">
+                                        {queueCount}
+                                    </span>
+                                )}
                             </button>
-                        ) : (
-                            <Link href="/dashboard" className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-emerald-50/75 hover:bg-white/10 hover:text-white">
-                                <span className="material-symbols-outlined">account_balance_wallet</span>
-                                Deposit Santri
-                            </Link>
                         )}
                     </div>
                 )}

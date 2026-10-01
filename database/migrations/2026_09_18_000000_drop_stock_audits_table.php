@@ -8,6 +8,11 @@ return new class extends Migration
 {
     public function up(): void
     {
+        Schema::dropIfExists('stock_audits');
+    }
+
+    public function down(): void
+    {
         Schema::create('stock_audits', function (Blueprint $table) {
             $table->id();
             $table->string('item_name');
@@ -19,10 +24,5 @@ return new class extends Migration
             $table->string('reason')->nullable();
             $table->timestamps();
         });
-    }
-
-    public function down(): void
-    {
-        Schema::dropIfExists('stock_audits');
     }
 };
