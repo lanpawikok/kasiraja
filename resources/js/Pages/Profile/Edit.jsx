@@ -401,7 +401,7 @@ export default function Profile() {
                                             Kata Sandi Akun
                                         </span>
                                         <span className="font-label-sm text-label-sm text-on-surface-variant">
-                                            Sandi masuk aplikasi BrewMaster
+                                            Sandi masuk aplikasi KASIR
                                         </span>
                                     </div>
                                 </div>

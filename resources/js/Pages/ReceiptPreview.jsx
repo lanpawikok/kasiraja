@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Link } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import PageSidebar from '@/Components/PageSidebar';
 
 export default function ReceiptPreview({ order }) {
@@ -63,6 +63,8 @@ export default function ReceiptPreview({ order }) {
     };
 
     return (
+        <>
+        <Head title="Struk" />
         <div className="bg-[#f8f9ff] text-[#121c28] min-h-screen flex flex-col font-['Inter',sans-serif] lg:pl-72">
             <PageSidebar />
             {/* CSS khusus print yang dinamis sesuai printMode */}
@@ -363,6 +365,7 @@ export default function ReceiptPreview({ order }) {
                 </div>
             )}
         </div>
+        </>
     );
 }
 

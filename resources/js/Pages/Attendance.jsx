@@ -62,7 +62,7 @@ export default function Attendance({ auth, attendances = [], stats }) {
 
     return (
         <>
-            <Head title="Staff Attendance - BrewMaster Pro" />
+            <Head title="Absen" />
 
             <div className="min-h-screen bg-background font-body-md text-on-surface lg:pl-72">
                 <PageSidebar />

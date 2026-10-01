@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useForm } from "@inertiajs/react";
+import { Head, Link, useForm } from "@inertiajs/react";
 import PageSidebar from "@/Components/PageSidebar";
 
 export default function ManageInventory({ inventories = [] }) {
@@ -67,6 +67,8 @@ export default function ManageInventory({ inventories = [] }) {
     ];
 
     return (
+        <>
+            <Head title="Inventory" />
         <div className="bg-[#f8f9ff] text-[#121c28] min-h-screen pb-safe font-sans lg:pl-72">
             <PageSidebar />
             {/* Top Navigation Bar */}
@@ -535,5 +537,6 @@ export default function ManageInventory({ inventories = [] }) {
                 </div>
             )}
         </div>
+        </>
     );
 }

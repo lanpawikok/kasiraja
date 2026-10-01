@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import PageSidebar from '@/Components/PageSidebar';
 
 // Daftar Produk Awal
@@ -581,6 +581,7 @@ export default function Dashboard({ catalogProducts = [] }) {
 
   return (
     <>
+      <Head title="Dashboard" />
       <style>{`
         .material-symbols-outlined {
           font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;

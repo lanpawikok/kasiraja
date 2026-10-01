@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Link, router } from "@inertiajs/react";
+import { Head, Link, router } from "@inertiajs/react";
 import PageSidebar from "@/Components/PageSidebar";
 
 const MONTH_NAMES_ID = [
@@ -82,8 +82,10 @@ export default function ReportsAndAudit({ summary = {}, dailySales = [], monthly
     ];
 
     return (
-        <div className="bg-[#f8f9ff] text-[#121c28] min-h-screen pb-safe font-sans lg:pl-72">
-            <PageSidebar />
+            <>
+                <Head title="Laporan" />
+            <div className="bg-[#f8f9ff] text-[#121c28] min-h-screen pb-safe font-sans lg:pl-72">
+                <PageSidebar />
             {/* Top Navigation Bar */}
             <header className="hidden fixed top-0 w-full z-50 bg-[#f8f9ff] shadow-sm text-[#173124] flex justify-between items-center px-4 h-14 border-b border-[#d9e3f4]">
                 <div className="flex items-center gap-2">
@@ -144,7 +146,7 @@ export default function ReportsAndAudit({ summary = {}, dailySales = [], monthly
                                         Admin Kasir
                                     </p>
                                     <p className="text-xs text-[#424844]">
-                                        admin@brewmaster.com
+                                        admin@kasiraja.com
                                     </p>
                                 </div>
                                 <button
@@ -618,5 +620,6 @@ export default function ReportsAndAudit({ summary = {}, dailySales = [], monthly
                 })}
             </nav>
         </div>
-    );
-}
+                    </>
+                );
+            }

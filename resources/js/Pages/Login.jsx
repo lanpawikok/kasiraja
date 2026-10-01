@@ -1,5 +1,5 @@
 import React from 'react';
-import { useForm } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
 
 export default function Login() {
   const { data, setData, post, processing, errors, reset } = useForm({
@@ -17,6 +17,8 @@ export default function Login() {
   };
 
   return (
+    <>
+      <Head title="Masuk" />
     <div className="bg-background min-h-screen flex items-center justify-center p-md text-on-surface relative overflow-hidden">
       <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full bg-[#d6ae5c]/10 blur-3xl" />
       <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-primary/10 blur-3xl" />
@@ -126,5 +128,6 @@ export default function Login() {
         </form>
       </div>
     </div>
+    </>
   );
 }
