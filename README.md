@@ -4,7 +4,7 @@
 <a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
+<a href="https://packagist.org/packages/laravel/framework"><img src="[https://img.shields.io/packagist/l/laravel/framework](https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS07j5pJWuy4Msg3taYt2UQ3Lc8HzMHrRGPUlsZZnUwIfpz_7_u2Vbd75w&s=10)" alt="License"></a>
 </p>
 
 ## About Laravel
